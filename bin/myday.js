@@ -15,6 +15,7 @@ const C = require('../lib/capture');
 const B = require('../lib/browsers');
 const R = require('../lib/rollup');
 const A = require('../lib/analytics');
+const FR = require('../lib/friction');
 const I = require('../lib/icons');
 
 const PKG = require('../package.json');
@@ -281,6 +282,22 @@ function cmdSessions() {
   }
 }
 
+function cmdFriction() {
+  if (!requireInit()) return;
+  const r = FR.report(Number(val('days', 21)));
+  if (!r.findings.length) return say(`Nothing recurring found in ${r.days} days of ${r.visits} visits.`);
+  say(`${r.days} days · ${r.visits} visits · ${r.findings.length} recurring frictions`);
+  say(`~${r.estMinPerWeek} min/week, estimated from counts rather than measured\n`);
+  const label = { auth: 'SIGN-IN', search: 'SEARCH', pingpong: 'SWITCHING', boomerang: 'NAVIGATION' };
+  let last = '';
+  for (const f of r.findings) {
+    if (f.kind !== last) { say(`  ${label[f.kind] || f.kind}`); last = f.kind; }
+    say(`    ${f.title}`);
+    say(`      ${f.detail}`);
+    say(`      → ${f.fix}\n`);
+  }
+}
+
 // Two-stage retrieval. Dumping every entry in range into one prompt is what breaks past a
 // couple of weeks, so the question first selects entries by keyword, and only the selection
 // is sent. Falls back to most-recent when the question has no usable content words.
@@ -390,6 +407,11 @@ function cmdView() {
       });
       res.writeHead(200, { 'content-type': 'application/json' }); return res.end(body);
     }
+    if (u.pathname === '/api/friction') {
+      let out; try { out = FR.report(Number(u.searchParams.get('days')) || 21); }
+      catch (e) { out = { error: e.message, findings: [] }; }
+      res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify(out));
+    }
     if (['/api/apps', '/api/browse', '/api/sessions', '/api/home'].includes(u.pathname)) {
       const date = u.searchParams.get('date') || S.isoDate();
       const fn = u.pathname === '/api/apps' ? A.appsDay : u.pathname === '/api/browse' ? A.browseDay
@@ -463,6 +485,7 @@ function cmdHelp() {
   apps [--week]        time per app, context switches, the shape of the day
   browse [--full]      what you read, clustered by site
   sessions             Claude Code sessions, with the prompt that started each
+  friction [--days 21] recurring costs: re-logins, repeat searches, bounce loops
   search <query>       across every memory
   ask "<question>"     answer from the memories (needs a model enabled)
   view [--port 7788]   browse them in a local page
@@ -490,6 +513,7 @@ function cmdHelp() {
       case 'apps': return cmdApps();
       case 'browse': return cmdBrowse();
       case 'sessions': return cmdSessions();
+      case 'friction': return cmdFriction();
       case 'search': return cmdSearch();
       case 'ask': return await cmdAsk();
       case 'view': return cmdView();

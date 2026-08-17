@@ -132,6 +132,19 @@ select:focus,input:focus{border-color:var(--mut)}
 .wd i{width:100%;border-radius:4px 4px 0 0;background:var(--accent);min-height:2px;opacity:.85}
 .wd.today i{background:var(--s1);opacity:1}
 .wd span{font-family:var(--mono);font-size:var(--t-xs);color:var(--faint)}
+/* Friction: findings, not charts. Each is a claim with its evidence attached. */
+.fhead{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:18px}
+.fhead .v{font-size:var(--t-xl);font-weight:600;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.fhead .n{font-size:var(--t-sm);color:var(--mut);margin-top:4px}
+.fhead .c{font-size:var(--t-xs);color:var(--faint);margin-top:7px;font-family:var(--mono)}
+.fg{font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);letter-spacing:.06em;
+  text-transform:uppercase;margin:20px 0 9px}
+.f{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:13px 15px;margin-bottom:9px}
+.f .ft{font-size:var(--t-sm);font-weight:600}
+.f .fd{font-size:var(--t-sm);color:var(--mut);margin-top:3px;line-height:1.5}
+.f .ff{font-size:var(--t-sm);color:var(--ink);margin-top:8px;padding-top:8px;border-top:1px solid var(--line);line-height:1.55}
+.f .ff::before{content:"Fix  ";font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);letter-spacing:.06em}
+.f .fe{font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);margin-top:6px}
 footer{margin-top:26px;font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);line-height:1.8}
 </style>
 </head>
@@ -149,6 +162,7 @@ footer{margin-top:26px;font-family:var(--mono);font-size:var(--t-xs);color:var(-
     <button class="tab" data-v="apps">Apps</button>
     <button class="tab" data-v="browse">Browse</button>
     <button class="tab" data-v="sessions">Sessions</button>
+    <button class="tab" data-v="friction">Friction</button>
   </div>
   <input id="q" type="search" placeholder="Filter this day — an app, a page, a word…" autocomplete="off">
   <div id="list"></div>
@@ -359,6 +373,26 @@ async function renderPane(){
       d.blocks.map(b=>`<div class="bl"><div class="blt">${b.start}${b.end?'<br>'+b.end:''}</div><div class="blm">`+
         `<div class="blh">${esc(b.host)}${b.count>1?` <span style="color:var(--faint);font-weight:400">×${b.count}</span>`:''}</div>`+
         b.titles.slice(0,3).map(t=>`<div class="bli">${esc(t)}</div>`).join('')+`</div></div>`).join('');
+  }
+
+  if (view==='friction'){
+    if (!d.findings || !d.findings.length) return pane.innerHTML =
+      `<div class="none">Nothing recurring found across ${d.days||21} days.<br>Friction needs a couple of weeks of history before patterns show.</div>`;
+    const LABEL = {auth:'Signing in again', search:'Searching for the same thing',
+                   pingpong:'Getting pulled away and back', boomerang:'Navigating there again'};
+    const order = ['auth','search','pingpong','boomerang'];
+    pane.innerHTML =
+      `<div class="fhead"><div class="v">~${d.estMinPerWeek} min/week</div>`+
+      `<div class="n">${d.findings.length} recurring frictions across ${d.days} days and ${d.visits.toLocaleString()} page visits.</div>`+
+      `<div class="c">${esc(d.note||'')}</div></div>`+
+      order.filter(k=>d.findings.some(f=>f.kind===k)).map(k=>
+        `<div class="fg">${esc(LABEL[k]||k)}</div>`+
+        d.findings.filter(f=>f.kind===k).map(f=>
+          `<div class="f"><div class="ft">${esc(f.title)}</div>`+
+          `<div class="fd">${esc(f.detail)}</div>`+
+          `<div class="ff">${esc(f.fix)}</div>`+
+          (f.evidence?`<div class="fe">${esc(f.evidence)}</div>`:'')+`</div>`).join('')
+      ).join('');
   }
 
   if (view==='sessions'){
