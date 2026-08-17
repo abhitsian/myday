@@ -1,4 +1,4 @@
-# backscroll
+# myday
 
 A private, local memory of what you did on your Mac. Every ten minutes it writes one small
 Markdown file describing what you were working on. You can search those files, ask questions
@@ -7,7 +7,7 @@ of them, and let your AI coding agent read them over MCP.
 No screenshots. No keystrokes. No account. Nothing leaves the machine unless you turn that on.
 
 ```
-backscroll show
+myday show
 
   09:10  Tracing the webhook retry loop
   09:20      Read Stripe's idempotency docs, then edited retry.ts
@@ -23,10 +23,10 @@ backscroll show
 Your agent starts every session knowing nothing about your week. You re-explain what you were
 doing, which file you were in, what you already tried. Meanwhile the machine knew all of it.
 
-backscroll writes that down in a form both you and an agent can read.
+myday writes that down in a form both you and an agent can read.
 
 ```
-$ backscroll ask "what was I debugging yesterday"
+$ myday ask "what was I debugging yesterday"
 
 The retry loop in retry.ts — specifically idempotency-key reuse on retried
 webhook deliveries (2026-08-16 09:10). You read Stripe's idempotency docs
@@ -37,9 +37,9 @@ webhook deliveries (2026-08-16 09:10). You read Stripe's idempotency docs
 ## Install
 
 ```sh
-npm install -g backscroll
-backscroll init      # explains exactly what gets captured, then asks
-backscroll start     # begins recording
+npm install -g myday
+myday init      # explains exactly what gets captured, then asks
+myday start     # begins recording
 ```
 
 macOS only. Node 18+.
@@ -61,7 +61,7 @@ first.
 For tier 3:
 
 ```sh
-backscroll build-helper
+myday build-helper
 # then grant Accessibility to just the printed binary path
 ```
 
@@ -73,7 +73,7 @@ which hands it to every AppleScript on your machine, including keystroke and cli
 
 ```jsonc
 // ~/.claude.json  →  mcpServers
-"backscroll": { "command": "backscroll-mcp" }
+"myday": { "command": "myday-mcp" }
 ```
 
 Four tools: `history_search`, `history_window`, `history_resume`, `history_time_by`.
@@ -87,11 +87,11 @@ By default summaries are written locally with no model and no network — plain 
 was captured. To get real prose:
 
 ```sh
-backscroll config summarizer claude-cli   # uses your Claude Code CLI
-backscroll config summarizer api          # uses ANTHROPIC_API_KEY
+myday config summarizer claude-cli   # uses your Claude Code CLI
+myday config summarizer api          # uses ANTHROPIC_API_KEY
 ```
 
-That is roughly 40–55 short calls a day. Every one is recorded in `~/.backscroll/egress.log`,
+That is roughly 40–55 short calls a day. Every one is recorded in `~/.myday/egress.log`,
 so "what left my machine, and when" is a question with a file-backed answer.
 
 ## Privacy
@@ -100,10 +100,10 @@ Exclusions apply **before anything is written to disk**, so an excluded app is n
 rather than filtered out later.
 
 ```sh
-backscroll config excludeApps "1Password, Keychain Access, Signal"
-backscroll config excludeSites "*bank*, *health*, therapist.example.com"
-backscroll config excludeTitlePatterns "Chat | *"   # blank the title, keep the time
-backscroll config paused true                        # stop recording, keep what exists
+myday config excludeApps "1Password, Keychain Access, Signal"
+myday config excludeSites "*bank*, *health*, therapist.example.com"
+myday config excludeTitlePatterns "Chat | *"   # blank the title, keep the time
+myday config paused true                        # stop recording, keep what exists
 ```
 
 Read [THREAT-MODEL.md](THREAT-MODEL.md) before deciding to run this. The short version: these
@@ -113,7 +113,7 @@ read them.
 ## Everything is a file
 
 ```
-~/.backscroll/
+~/.myday/
   config.json
   raw/2026-08-17.jsonl          samples, deleted after 14 days
   memories/2026-08-17/0910.md   one per 10 minutes, kept
@@ -144,14 +144,20 @@ Edit them. Delete them. `grep` them. There is no database and no export step.
 ## Commands
 
 ```
-backscroll init | start | stop | status | uninstall
-backscroll show [--date D] | search <query> | ask "<question>" | view
-backscroll rollup [--date D] [--backfill N] [--force]
-backscroll config [key] [value]
-backscroll build-helper
+myday init | start | stop | status | uninstall
+myday show [--date D]        the day's memories
+myday apps [--week]          time per app, context switches, the shape of the day
+myday browse [--full]        what you read, clustered by site
+myday sessions               Claude Code sessions, with the prompt that started each
+myday search <query> | ask "<question>" | view
+myday rollup [--date D] [--backfill N] [--force]
+myday config [key] [value] | build-helper
 ```
 
-`backscroll uninstall` stops the daemon and deletes every file it created.
+`apps`, `browse` and `sessions` read data already on disk. They cost no model call, no
+network, and no permission beyond what capture already has.
+
+`myday uninstall` stops the daemon and deletes every file it created.
 
 ## Prior art
 
@@ -159,7 +165,7 @@ OpenAI shipped Computer History in the ChatGPT Mac app in August 2026 — the sa
 interaction events rather than screenshots, rolled up on a ten-minute cadence into Markdown
 memory files. Windows Recall and Rewind took the screenshot route.
 
-backscroll differs on three things: it works at tier 1 with no permission at all, it reads
+myday differs on three things: it works at tier 1 with no permission at all, it reads
 page detail from the browser's history DB rather than scraping the window, and it is a local
 file tree with an MCP server rather than a feature inside one assistant.
 

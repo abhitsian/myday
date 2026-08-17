@@ -1,29 +1,29 @@
 # Threat model
 
-Read this before running backscroll. It records what you do on your computer. That is useful
+Read this before running myday. It records what you do on your computer. That is useful
 and it is also a liability, and the second part deserves a document rather than a sentence in
 a README.
 
 ## What exists on disk
 
-`~/.backscroll/memories/` holds plaintext Markdown describing your working day in ten-minute
+`~/.myday/memories/` holds plaintext Markdown describing your working day in ten-minute
 resolution: which applications, which web pages, which documents, which projects, when you
 were at the machine and when you were not. Weeks of it accumulate.
 
 Nothing is encrypted. Encrypting it would need a key, and a key that a background daemon can
 use unattended is a key an attacker who already has your account can also use. Encryption
-here would look like protection without being it, so backscroll does not pretend.
+here would look like protection without being it, so myday does not pretend.
 
 ## Who can read it
 
 **Anything running as your user.** Every CLI tool, every npm postinstall script, every app you
-have granted file access. This is the main risk and it is not one backscroll can fix. If you
+have granted file access. This is the main risk and it is not one myday can fix. If you
 run untrusted code as yourself, assume these files are readable.
 
-**Backups.** Time Machine, Backblaze, and any folder sync include `~/.backscroll` unless you
+**Backups.** Time Machine, Backblaze, and any folder sync include `~/.myday` unless you
 exclude it. The retention promise you make to yourself is only as good as your backup policy.
 
-**Not Spotlight.** `~/.backscroll/.metadata_never_index` is written at setup, so the memories
+**Not Spotlight.** `~/.myday/.metadata_never_index` is written at setup, so the memories
 do not surface in a system-wide search box.
 
 **Not the network.** The viewer binds `127.0.0.1`. There is no HTTP transport on the MCP
@@ -36,12 +36,12 @@ With `summarizer: local`, the default: nothing.
 With `claude-cli` or `api`, two things go out:
 
 - **Rollups.** Every ten minutes, one window's app names, window titles, and page titles.
-- **Questions.** When you run `backscroll ask`, the entries selected for that question.
+- **Questions.** When you run `myday ask`, the entries selected for that question.
 
-Every send appends a line to `~/.backscroll/egress.log` with a timestamp, the destination
+Every send appends a line to `~/.myday/egress.log` with a timestamp, the destination
 kind, and the size. Nothing else writes to that file.
 
-Your model provider's retention policy applies to what you send. backscroll cannot make a
+Your model provider's retention policy applies to what you send. myday cannot make a
 promise on their behalf.
 
 ## Prompt injection
@@ -64,7 +64,7 @@ edit files and run commands. So:
   earlier one in the conversation.
 
 This reduces the risk. It does not eliminate it — no envelope makes a model immune to
-persuasion. Treat backscroll output the way you treat any untrusted input reaching an agent
+persuasion. Treat myday output the way you treat any untrusted input reaching an agent
 with tools. If you run agents that act without review, that is the risk to weigh.
 
 ## What is deliberately not captured
@@ -86,9 +86,9 @@ point, not a considered answer for your life. Add what matters to you: therapy, 
 portals, legal, job searching, anything about other people who did not opt into this.
 
 ```sh
-backscroll config excludeApps "Signal, Messages, 1Password"
-backscroll config excludeSites "*bank*, *health*, *therapy*"
-backscroll config excludeTitlePatterns "Chat | *"   # keeps the time, drops who
+myday config excludeApps "Signal, Messages, 1Password"
+myday config excludeSites "*bank*, *health*, *therapy*"
+myday config excludeTitlePatterns "Chat | *"   # keeps the time, drops who
 ```
 
 That last one matters more than it looks. Chat window titles carry the other person's name,
@@ -102,12 +102,12 @@ someone who can act on it is a different object from a personal note.
 
 ## Deletion
 
-`backscroll uninstall` stops the daemon and removes `~/.backscroll` entirely. Individual
+`myday uninstall` stops the daemon and removes `~/.myday` entirely. Individual
 memories can be deleted with the × in the viewer or by deleting the file; there is no index to
 rebuild and no tombstone left behind.
 
 The Accessibility grant, if you added one, has to be removed by hand in System Settings.
-backscroll cannot revoke its own permissions.
+myday cannot revoke its own permissions.
 
 ## Reporting
 

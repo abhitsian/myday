@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>backscroll</title>
+<title>myday</title>
 <style>
 :root{
   --bg:#f7f6f3; --card:#fffefc; --ink:#1a1a18; --mut:#6b6862; --faint:#9c988f; --line:#e6e3dc;
@@ -53,21 +53,45 @@ select:focus,input:focus{border-color:var(--mut)}
 .x:hover{color:#c0504d}
 .none{font-family:var(--mono);font-size:var(--t-sm);color:var(--faint);background:var(--card);
   border:1px dashed var(--line);border-radius:12px;padding:26px;text-align:center;line-height:1.9}
+.tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--line)}
+.tab{font-family:var(--sans);font-size:var(--t-sm);background:none;border:none;border-bottom:2px solid transparent;
+  color:var(--mut);padding:8px 12px;cursor:pointer;margin-bottom:-1px}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--ink);border-bottom-color:var(--ink);font-weight:600}
+.row{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:var(--t-sm)}
+.rname{width:170px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rbar{flex:1;height:7px;background:var(--line);border-radius:4px;overflow:hidden}
+.rbar i{display:block;height:100%;border-radius:4px;background:var(--accent)}
+.rval{width:74px;text-align:right;font-family:var(--mono);font-size:var(--t-xs);color:var(--mut);font-variant-numeric:tabular-nums}
+.sub{font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);margin:14px 0 6px;letter-spacing:.04em;text-transform:uppercase}
+.bl{display:flex;gap:14px;padding:9px 0;border-bottom:1px solid var(--line);font-size:var(--t-sm)}
+.bl:last-child{border-bottom:none}
+.blt{width:92px;flex:none;font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);padding-top:3px;font-variant-numeric:tabular-nums}
+.blm{flex:1;min-width:0}
+.blh{font-weight:600}
+.bli{color:var(--mut);line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 footer{margin-top:26px;font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);line-height:1.8}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>backscroll <span>— what you did</span></h1>
+    <h1>myday <span>— what you did</span></h1>
     <select id="date"></select>
   </header>
   <div class="bar" id="bar"></div>
   <div id="warn"></div>
+  <div class="tabs" id="tabs">
+    <button class="tab on" data-v="memories">Memories</button>
+    <button class="tab" data-v="apps">Apps</button>
+    <button class="tab" data-v="browse">Browse</button>
+    <button class="tab" data-v="sessions">Sessions</button>
+  </div>
   <input id="q" type="search" placeholder="Filter this day — an app, a page, a word…" autocomplete="off">
   <div id="list"></div>
+  <div id="pane"></div>
   <footer>
-    Everything here is a plain Markdown file under <code>~/.backscroll/memories/</code>.<br>
+    Everything here is a plain Markdown file under <code>~/.myday/memories/</code>.<br>
     Delete one with the ×, or delete the file. Nothing is uploaded.
   </footer>
 </div>
@@ -96,12 +120,12 @@ async function load(date){
 
   const w = [];
   if (D.capture.samples > 40 && D.capture.titlePct === 0)
-    w.push('Window titles are not being captured — app names and page titles only. <code>backscroll build-helper</code> then grant that one binary Accessibility.');
+    w.push('Window titles are not being captured — app names and page titles only. <code>myday build-helper</code> then grant that one binary Accessibility.');
   if (D.summarizer === 'local' && D.entries.length)
-    w.push('Summaries are local digests. <code>backscroll config summarizer claude-cli</code> writes them with a model instead.');
+    w.push('Summaries are local digests. <code>myday config summarizer claude-cli</code> writes them with a model instead.');
   document.getElementById('warn').innerHTML = w.map(x=>`<div class="warn">${x}</div>`).join('');
 
-  render();
+  renderPane();
 }
 
 function render(){
@@ -111,7 +135,7 @@ function render(){
   const el = document.getElementById('list');
   if (!list.length){
     el.innerHTML = `<div class="none">${q ? 'Nothing on this day matches “'+esc(q)+'”.'
-      : 'No memories for this day.<br>Run <code>backscroll rollup</code>, or <code>backscroll start</code> if the daemon is off.'}</div>`;
+      : 'No memories for this day.<br>Run <code>myday rollup</code>, or <code>myday start</code> if the daemon is off.'}</div>`;
     return;
   }
   el.innerHTML = list.map(e=>{
@@ -140,6 +164,66 @@ function render(){
   });
 }
 
+let view = 'memories';
+const durm = s => s>=3600 ? `${Math.floor(s/3600)}h ${String(Math.round(s%3600/60)).padStart(2,'0')}m` : `${Math.round(s/60)}m`;
+const rows = items => items.map(i =>
+  `<div class="row"><span class="rname" title="${esc(i.name)}">${esc(i.name)}</span>`+
+  `<span class="rbar"><i style="width:${i.pct}%"></i></span><span class="rval">${esc(i.val)}</span></div>`).join('');
+
+async function renderPane(){
+  const list = document.getElementById('list'), pane = document.getElementById('pane'), q = document.getElementById('q');
+  list.classList.toggle('hidden', view!=='memories');
+  list.style.display = view==='memories' ? '' : 'none';
+  q.style.display = view==='memories' ? '' : 'none';
+  pane.style.display = view==='memories' ? 'none' : '';
+  if (view==='memories') return render();
+
+  pane.innerHTML = '<div class="none">loading…</div>';
+  const d = await (await fetch(`/api/${view}?date=${D.date}`)).json();
+
+  if (view==='apps'){
+    if (!d.apps || !d.apps.length) return pane.innerHTML =
+      '<div class="none">No samples for this day.<br>The daemon records these — run <code>myday status</code>.</div>';
+    pane.innerHTML =
+      `<div class="bar"><span class="pill"><b>${durm(d.active)}</b> at the machine</span>`+
+      `<span class="pill"><b>${d.apps.length}</b> apps</span>`+
+      `<span class="pill"><b>${d.switches}</b> switches · ${d.switchesPerHour}/hr</span>`+
+      (d.longest?`<span class="pill">longest <b>${durm(d.longest.secs)}</b> ${esc(d.longest.app)}</span>`:'')+`</div>`+
+      `<div class="sub">today</div>`+
+      rows(d.apps.map(a=>({name:a.app, pct:a.pct, val:`${durm(a.secs)} · ${a.pct}%`})))+
+      `<div class="sub">last 7 days</div>`+
+      rows(d.weekApps.map(a=>({name:a.app, pct:Math.round(a.secs/Math.max(...d.weekApps.map(x=>x.secs),1)*100), val:durm(a.secs)})));
+  }
+
+  if (view==='browse'){
+    if (!d.blocks || !d.blocks.length) return pane.innerHTML = '<div class="none">No browsing recorded for this day.</div>';
+    pane.innerHTML =
+      `<div class="bar"><span class="pill"><b>${d.visits}</b> visits</span><span class="pill"><b>${d.hosts.length}</b> sites</span></div>`+
+      d.blocks.map(b=>`<div class="bl"><div class="blt">${b.start}${b.end?'<br>'+b.end:''}</div><div class="blm">`+
+        `<div class="blh">${esc(b.host)}${b.count>1?` <span style="color:var(--faint);font-weight:400">×${b.count}</span>`:''}</div>`+
+        b.titles.slice(0,3).map(t=>`<div class="bli">${esc(t)}</div>`).join('')+`</div></div>`).join('');
+  }
+
+  if (view==='sessions'){
+    if (!d.available) return pane.innerHTML =
+      '<div class="none">No Claude Code transcripts found.<br>This view is for Claude Code users.</div>';
+    if (!d.sessions.length) return pane.innerHTML = '<div class="none">No sessions on this day.</div>';
+    pane.innerHTML =
+      `<div class="bar"><span class="pill"><b>${d.sessions.length}</b> sessions</span>`+
+      `<span class="pill"><b>${durm(d.totalMins*60)}</b> elapsed</span>`+
+      d.projects.slice(0,4).map(p=>`<span class="pill">${esc(p.project)} <b>${p.mins}m</b></span>`).join('')+`</div>`+
+      d.sessions.map(s=>`<div class="bl"><div class="blt">${s.start}<br>${s.end}</div><div class="blm">`+
+        `<div class="blh">${esc(s.project)} <span style="color:var(--faint);font-weight:400">${s.mins}m · ${s.turns} turns</span></div>`+
+        `<div class="bli">${esc(s.prompt)}</div></div></div>`).join('');
+  }
+}
+
+document.getElementById('tabs').onclick = e => {
+  const b = e.target.closest('.tab'); if (!b) return;
+  view = b.dataset.v;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t===b));
+  renderPane();
+};
 document.getElementById('q').oninput = () => render();
 document.getElementById('date').onchange = e => load(e.target.value);
 load();

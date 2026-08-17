@@ -9,14 +9,14 @@
 // title goes through the Accessibility API, so a denied grant degrades to app-name-only
 // rather than to nothing.
 //
-// Build (see `backscroll build-helper` — the ad-hoc signature is part of the TCC identity, so rebuilding
+// Build (see `myday build-helper` — the ad-hoc signature is part of the TCC identity, so rebuilding
 // invalidates the Accessibility grant and the entry has to be removed and re-added):
 //   swiftc -O -o helper/frontwindow helper/frontwindow.swift
-//   codesign --force --sign - --identifier com.backscroll.frontwindow helper/frontwindow
+//   codesign --force --sign - --identifier com.myday.frontwindow helper/frontwindow
 //
 // Exit codes: 0 ok · 2 not trusted for Accessibility (title empty) · 1 no frontmost app.
 // The caller uses 2 to tell "no permission" apart from "this window has no title", which
-// lets `backscroll status` report the real state instead of showing empty titles.
+// lets `myday status` report the real state instead of showing empty titles.
 
 import Cocoa
 import ApplicationServices

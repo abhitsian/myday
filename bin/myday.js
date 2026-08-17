@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
-// backscroll — a private, local memory of what you did on your Mac.
-// One daemon, one command surface, everything on disk under ~/.backscroll.
+// myday — a private, local memory of what you did on your Mac.
+// One daemon, one command surface, everything on disk under ~/.myday.
 
 const fs = require('fs');
 const os = require('os');
@@ -14,11 +14,12 @@ const S = require('../lib/store');
 const C = require('../lib/capture');
 const B = require('../lib/browsers');
 const R = require('../lib/rollup');
+const A = require('../lib/analytics');
 
 const PKG = require('../package.json');
-const LABEL = 'com.backscroll.daemon';
+const LABEL = 'com.myday.daemon';
 const PLIST = path.join(os.homedir(), 'Library', 'LaunchAgents', LABEL + '.plist');
-const SELF = path.join(__dirname, 'backscroll.js');
+const SELF = path.join(__dirname, 'myday.js');
 
 const argv = process.argv.slice(2);
 const cmd = argv[0];
@@ -36,7 +37,7 @@ async function cmdInit() {
   const caps = C.capabilities();
   const browsers = B.installed();
   say(`
-backscroll ${PKG.version} — a private record of what you did on this Mac.
+myday ${PKG.version} — a private record of what you did on this Mac.
 
 WHAT IT RECORDS
   Every 15 seconds, while you are actually at the keyboard:
@@ -44,7 +45,7 @@ WHAT IT RECORDS
     · that window's title                                 ${caps.windowTitles ? '✓ available now' : '— needs the optional helper'}
   Every 10 minutes, page titles and URLs from your browser history:
     · ${browsers.length ? browsers.join(', ') : 'no supported browser found'}
-  Those become one Markdown file per 10 minutes under ~/.backscroll/memories/.
+  Those become one Markdown file per 10 minutes under ~/.myday/memories/.
 
 WHAT IT NEVER RECORDS
   No screenshots. No keystrokes. No clipboard. No file contents. No audio.
@@ -53,15 +54,15 @@ WHAT IT NEVER RECORDS
 
 WHERE IT GOES
   Nowhere. Summaries are generated locally by default. Sending text to a model
-  is opt-in (\`backscroll config summarizer claude-cli\`), and every send is
-  logged to ~/.backscroll/egress.log.
+  is opt-in (\`myday config summarizer claude-cli\`), and every send is
+  logged to ~/.myday/egress.log.
 
   Anyone who can run programs as you can read these files. They describe your
   day in detail. Do not enable this on a shared or managed account you do not
   control.
 
 REMOVING IT
-  \`backscroll uninstall\` stops the daemon and deletes every file it created.
+  \`myday uninstall\` stops the daemon and deletes every file it created.
 `);
   const a = await ask('Type "yes" to set this up: ');
   if (a.toLowerCase() !== 'yes') return say('Nothing was created.');
@@ -70,22 +71,22 @@ REMOVING IT
   S.writeConfig({ browsers: browsers.length ? browsers : S.DEFAULTS.browsers });
   say(`\nCreated ${S.ROOT}`);
   say(`Config:   ${S.CONFIG}`);
-  say(`\nNext:  backscroll start        (begin recording)`);
-  say(`       backscroll status       (check what is working)`);
-  if (!caps.windowTitles) say(`       backscroll build-helper (optional: window titles)`);
+  say(`\nNext:  myday start        (begin recording)`);
+  say(`       myday status       (check what is working)`);
+  if (!caps.windowTitles) say(`       myday build-helper (optional: window titles)`);
 }
 
 // ---------------------------------------------------------------- daemon
 // One process does both jobs. Two launchd agents would be two things to get wrong.
 function cmdDaemon() {
   S.ensure();
-  process.stderr.write(`[backscroll] daemon up — sampling every ${S.readConfig().intervalSec}s, rolling up every ${S.SLOT_MIN}m\n`);
+  process.stderr.write(`[myday] daemon up — sampling every ${S.readConfig().intervalSec}s, rolling up every ${S.SLOT_MIN}m\n`);
   C.loop();
   const tick = async () => {
     try {
-      const r = await R.rollup({ log: (m) => process.stderr.write('[backscroll] ' + m + '\n') });
-      if (r.written && r.written.length) process.stderr.write(`[backscroll] wrote ${r.written.join(', ')}\n`);
-    } catch (e) { process.stderr.write('[backscroll] rollup error: ' + e.message + '\n'); }
+      const r = await R.rollup({ log: (m) => process.stderr.write('[myday] ' + m + '\n') });
+      if (r.written && r.written.length) process.stderr.write(`[myday] wrote ${r.written.join(', ')}\n`);
+    } catch (e) { process.stderr.write('[myday] rollup error: ' + e.message + '\n'); }
     setTimeout(tick, S.SLOT_MIN * 60000);
   };
   setTimeout(tick, 30000);
@@ -116,24 +117,24 @@ function plistBody() {
 }
 
 function cmdStart() {
-  if (!S.initialized()) return say('Run `backscroll init` first.');
+  if (!S.initialized()) return say('Run `myday init` first.');
   S.ensure();
   fs.mkdirSync(path.dirname(PLIST), { recursive: true });
   fs.writeFileSync(PLIST, plistBody());
   try { execSync(`launchctl unload ${JSON.stringify(PLIST)} 2>/dev/null`); } catch {}
   execSync(`launchctl load ${JSON.stringify(PLIST)}`);
   S.writeConfig({ paused: false });
-  say('Recording. `backscroll status` to check, `backscroll stop` to halt.');
+  say('Recording. `myday status` to check, `myday stop` to halt.');
 }
 
 function cmdStop() {
   try { execSync(`launchctl unload ${JSON.stringify(PLIST)} 2>/dev/null`); } catch {}
-  say('Stopped. Files kept — `backscroll uninstall` removes them.');
+  say('Stopped. Files kept — `myday uninstall` removes them.');
 }
 
 // ---------------------------------------------------------------- status
 function cmdStatus() {
-  if (!S.initialized()) return say('Not set up. Run `backscroll init`.');
+  if (!S.initialized()) return say('Not set up. Run `myday init`.');
   const cfg = S.readConfig();
   const caps = C.capabilities();
   const today = S.isoDate();
@@ -143,7 +144,7 @@ function cmdStatus() {
   let running = false;
   try { running = execSync('launchctl list', { encoding: 'utf8' }).includes(LABEL); } catch {}
 
-  say(`backscroll ${PKG.version}`);
+  say(`myday ${PKG.version}`);
   say(`  daemon        ${running ? 'running' : 'not running'}${cfg.paused ? ' (paused)' : ''}`);
   say(`  today         ${raw.length} samples · ${entries.length} memories · ${Math.round(entries.reduce((a, e) => a + e.activeSec, 0) / 60)}m active`);
   say(`  app names     ${caps.appNames ? 'yes' : 'NO — lsappinfo unavailable'}`);
@@ -165,7 +166,7 @@ function cmdBuildHelper() {
   try { execFileSync('which', ['swiftc'], { stdio: 'ignore' }); }
   catch { return say('swiftc not found. Install Xcode Command Line Tools:\n  xcode-select --install'); }
   execFileSync('swiftc', ['-O', '-o', C.HELPER, src], { stdio: 'inherit' });
-  execFileSync('codesign', ['--force', '--sign', '-', '--identifier', 'com.backscroll.frontwindow', C.HELPER], { stdio: 'inherit' });
+  execFileSync('codesign', ['--force', '--sign', '-', '--identifier', 'com.myday.frontwindow', C.HELPER], { stdio: 'inherit' });
   say(`Built ${C.HELPER}`);
   say(`\nGrant it Accessibility (this one binary only, not osascript):`);
   say(`  System Settings → Privacy & Security → Accessibility → + → ${C.HELPER}`);
@@ -181,7 +182,7 @@ function fmtEntry(e, withDate) {
 
 function cmdSearch() {
   const q = argv.slice(1).filter((a) => !a.startsWith('--')).join(' ');
-  if (!q) return say('usage: backscroll search <query> [--days 30]');
+  if (!q) return say('usage: myday search <query> [--days 30]');
   const hits = S.search(q, Number(val('days', 30)));
   if (!hits.length) return say(`No memory matches "${q}".`);
   say(`${hits.length} match${hits.length === 1 ? '' : 'es'}\n`);
@@ -194,6 +195,49 @@ function cmdShow() {
   if (!entries.length) return say(`Nothing for ${date}.`);
   say(`${date} — ${entries.length} memories, ${Math.round(entries.reduce((a, e) => a + e.activeSec, 0) / 60)}m active\n`);
   entries.forEach((e) => say(fmtEntry(e, false)));
+}
+
+// ---------------------------------------------------------------- apps / browse / sessions
+// Views over data already captured. No model call, no new permission, no network.
+const dur = (s) => (s >= 3600 ? `${Math.floor(s / 3600)}h ${S.pad(Math.round((s % 3600) / 60))}m` : `${Math.round(s / 60)}m`);
+const bar = (pct, w = 24) => '█'.repeat(Math.max(0, Math.round(pct / 100 * w))).padEnd(w, '·');
+
+function cmdApps() {
+  const d = A.appsDay(val('date', S.isoDate()));
+  if (!d.apps.length) return say(`No samples for ${d.date}. The daemon records these — check \`myday status\`.`);
+  say(`${d.date} — ${dur(d.active)} at the machine · ${d.apps.length} apps · ${d.switches} switches (${d.switchesPerHour}/hr) · ${d.first.slice(11, 16)}–${d.last.slice(11, 16)}\n`);
+  for (const a of d.apps) {
+    say(`  ${bar(a.pct)} ${String(a.pct).padStart(3)}%  ${dur(a.secs).padStart(7)}  ${a.app}`);
+    if (a.titles.length && flag('titles')) a.titles.forEach((t) => say(`  ${' '.repeat(24)}       ${t.title.slice(0, 60)}`));
+  }
+  if (d.longest) say(`\n  longest unbroken block: ${dur(d.longest.secs)} in ${d.longest.app}`);
+  if (flag('week')) {
+    const max = Math.max(...d.weekApps.map((a) => a.secs), 1);
+    say(`\n  last 7 days`);
+    for (const a of d.weekApps) say(`  ${bar(a.secs / max * 100)} ${dur(a.secs).padStart(7)}  ${a.app}`);
+  }
+}
+
+function cmdBrowse() {
+  const d = A.browseDay(val('date', S.isoDate()));
+  if (!d.blocks.length) return say(`No browsing recorded for ${d.date}.`);
+  say(`${d.date} — ${d.visits} visits across ${d.hosts.length} sites\n`);
+  for (const b of d.blocks) {
+    say(`  ${b.start}${b.end ? '–' + b.end : '     '}  ${b.host}${b.count > 1 ? ` (${b.count})` : ''}`);
+    b.titles.slice(0, flag('full') ? 6 : 2).forEach((t) => say(`              ${t.slice(0, 78)}`));
+  }
+  say(`\n  most visited: ${d.hosts.slice(0, 5).map((h) => `${h.host} (${h.visits})`).join(' · ')}`);
+}
+
+function cmdSessions() {
+  const d = A.sessionsDay(val('date', S.isoDate()));
+  if (!d.available) return say('No Claude Code transcripts found (~/.claude/projects). This view is for Claude Code users.');
+  if (!d.sessions.length) return say(`No sessions on ${d.date}.`);
+  say(`${d.date} — ${d.sessions.length} sessions · ${dur(d.totalMins * 60)} elapsed (overlap merged) · ${d.projects.map((p) => `${p.project} ${p.mins}m`).join(' · ')}\n`);
+  for (const s of d.sessions) {
+    say(`  ${s.start}–${s.end}  ${String(s.mins + 'm').padStart(5)}  ${s.project}`);
+    say(`                        ${s.prompt.slice(0, 76)}`);
+  }
 }
 
 // Two-stage retrieval. Dumping every entry in range into one prompt is what breaks past a
@@ -222,10 +266,10 @@ function selectForAsk(question, days, budgetChars = 24000) {
 
 async function cmdAsk() {
   const q = argv.slice(1).filter((a) => !a.startsWith('--')).join(' ');
-  if (!q) return say('usage: backscroll ask "what was I debugging yesterday" [--days 7]');
+  if (!q) return say('usage: myday ask "what was I debugging yesterday" [--days 7]');
   const cfg = S.readConfig();
   if (cfg.summarizer === 'local') {
-    return say('Asking needs a model. Enable one first:\n  backscroll config summarizer claude-cli   (uses your Claude Code CLI)\n  backscroll config summarizer api          (uses ANTHROPIC_API_KEY)');
+    return say('Asking needs a model. Enable one first:\n  myday config summarizer claude-cli   (uses your Claude Code CLI)\n  myday config summarizer api          (uses ANTHROPIC_API_KEY)');
   }
   const days = Number(val('days', 7));
   const picked = selectForAsk(q, days);
@@ -303,6 +347,12 @@ function cmdView() {
       });
       res.writeHead(200, { 'content-type': 'application/json' }); return res.end(body);
     }
+    if (u.pathname === '/api/apps' || u.pathname === '/api/browse' || u.pathname === '/api/sessions') {
+      const date = u.searchParams.get('date') || S.isoDate();
+      const fn = u.pathname === '/api/apps' ? A.appsDay : u.pathname === '/api/browse' ? A.browseDay : A.sessionsDay;
+      let out; try { out = fn(date); } catch (e) { out = { error: e.message }; }
+      res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify(out));
+    }
     if (u.pathname === '/api/delete' && req.method === 'POST') {
       let b = ''; req.on('data', (c) => (b += c));
       return req.on('end', () => {
@@ -346,7 +396,7 @@ async function cmdRollup() {
 }
 
 function cmdHelp() {
-  say(`backscroll ${PKG.version} — a private, local memory of what you did on your Mac
+  say(`myday ${PKG.version} — a private, local memory of what you did on your Mac
 
   init                 explain what is captured, then set up
   start | stop         run or halt the background daemon
@@ -354,6 +404,9 @@ function cmdHelp() {
   build-helper         optional: compile the window-title helper
 
   show [--date D]      the day's memories
+  apps [--week]        time per app, context switches, the shape of the day
+  browse [--full]      what you read, clustered by site
+  sessions             Claude Code sessions, with the prompt that started each
   search <query>       across every memory
   ask "<question>"     answer from the memories (needs a model enabled)
   view [--port 7788]   browse them in a local page
@@ -363,7 +416,7 @@ function cmdHelp() {
   uninstall            stop, and delete everything
 
   Storage: ${S.ROOT}
-  Docs:    https://github.com/${PKG.repository ? PKG.repository.replace(/^github:/, '') : 'you/backscroll'}
+  Docs:    https://github.com/${PKG.repository ? PKG.repository.replace(/^github:/, '') : 'you/myday'}
 `);
 }
 
@@ -378,6 +431,9 @@ function cmdHelp() {
       case 'status': return cmdStatus();
       case 'build-helper': return cmdBuildHelper();
       case 'show': return cmdShow();
+      case 'apps': return cmdApps();
+      case 'browse': return cmdBrowse();
+      case 'sessions': return cmdSessions();
       case 'search': return cmdSearch();
       case 'ask': return await cmdAsk();
       case 'view': return cmdView();
@@ -388,7 +444,7 @@ function cmdHelp() {
       default: return cmdHelp();
     }
   } catch (e) {
-    console.error('backscroll: ' + e.message);
+    console.error('myday: ' + e.message);
     process.exit(1);
   }
 })();

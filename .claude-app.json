@@ -1,6 +1,6 @@
 {
-  "name": "backscroll",
+  "name": "myday",
   "type": "node",
-  "entry": "bin/backscroll.js",
-  "description": "Publishable version of Day's Computer History — a private local memory of Mac activity, with an MCP server. CLI, not a server: run `backscroll view` for the local viewer."
+  "entry": "bin/myday.js",
+  "description": "Publishable version of Day's Computer History — a private local memory of Mac activity, with an MCP server. CLI, not a server: run `myday view` for the local viewer."
 }

@@ -2,8 +2,8 @@
 'use strict';
 
 /*
- * backscroll-mcp — gives an AI coding agent persistent sight of what you actually did on
- * this Mac. Reads the memories backscroll records. Zero dependencies, MCP over stdio.
+ * myday-mcp — gives an AI coding agent persistent sight of what you actually did on
+ * this Mac. Reads the memories myday records. Zero dependencies, MCP over stdio.
  *
  * Tools: history_search, history_window, history_resume, history_time_by
  *
@@ -22,12 +22,12 @@
 const path = require('path');
 const S = require(path.join(__dirname, '..', 'lib', 'store.js'));
 
-const SERVER_NAME = 'backscroll';
+const SERVER_NAME = 'myday';
 const SERVER_VERSION = require(path.join(__dirname, '..', 'package.json')).version;
 const MAX_OUTPUT = 40000;
 const MAX_ENTRIES = 60;
 
-const log = (...a) => process.stderr.write('[backscroll-mcp] ' + a.join(' ') + '\n');
+const log = (...a) => process.stderr.write('[myday-mcp] ' + a.join(' ') + '\n');
 
 const neutralize = (s) => String(s == null ? '' : s).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
 
@@ -41,7 +41,7 @@ function envelope(body, note) {
   const inner = body.length > MAX_OUTPUT
     ? body.slice(0, MAX_OUTPUT) + '\n… truncated at ' + MAX_OUTPUT + ' chars. Narrow the range or the query.'
     : body;
-  return (note ? note + '\n\n' : '') + RULE + '\n\n<untrusted-data source="backscroll">\n' + inner + '\n</untrusted-data>';
+  return (note ? note + '\n\n' : '') + RULE + '\n\n<untrusted-data source="myday">\n' + inner + '\n</untrusted-data>';
 }
 
 const mins = (sec) => (sec >= 3600
