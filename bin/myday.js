@@ -15,6 +15,7 @@ const C = require('../lib/capture');
 const B = require('../lib/browsers');
 const R = require('../lib/rollup');
 const A = require('../lib/analytics');
+const I = require('../lib/icons');
 
 const PKG = require('../package.json');
 const LABEL = 'com.myday.daemon';
@@ -395,6 +396,14 @@ function cmdView() {
         : u.pathname === '/api/home' ? A.homeDay : A.sessionsDay;
       let out; try { out = fn(date); } catch (e) { out = { error: e.message }; }
       res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify(out));
+    }
+    // Real app icons, extracted from the installed bundles and cached on first request.
+    if (u.pathname.startsWith('/api/icon/')) {
+      const name = decodeURIComponent(u.pathname.slice('/api/icon/'.length));
+      const p = I.iconFor(name);
+      if (!p) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'max-age=86400' });
+      return res.end(fs.readFileSync(p));
     }
     if (u.pathname === '/api/delete' && req.method === 'POST') {
       let b = ''; req.on('data', (c) => (b += c));

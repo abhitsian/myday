@@ -47,19 +47,32 @@ select:focus,input:focus{border-color:var(--mut)}
 #q{width:100%;margin-bottom:14px;padding:10px 13px}
 .warn{background:color-mix(in oklab,var(--warn) 8%,var(--card));border:1px solid color-mix(in oklab,var(--warn) 28%,var(--line));
   color:var(--warn);border-radius:10px;padding:9px 13px;font-family:var(--mono);font-size:var(--t-xs);line-height:1.7;margin-bottom:14px}
-.e{display:flex;gap:14px;padding:13px 0;border-bottom:1px solid var(--line)}
-.e:last-child{border-bottom:none}
-.t{width:92px;flex:none;font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);padding-top:5px;font-variant-numeric:tabular-nums}
-.t b{display:block;color:var(--ink);font-weight:600}
-.m{flex:1;min-width:0}
-.ti{font-weight:600;font-size:var(--t-md);cursor:pointer;line-height:1.35;letter-spacing:-.01em}
-.ti:hover{color:var(--accent)}
-.su{font-size:var(--t-sm);color:var(--mut);line-height:1.55;margin-top:4px}
-.ch{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
-.c{font-family:var(--mono);font-size:var(--t-xs);color:var(--mut);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 7px}
-.bd{margin-top:9px;padding:11px 13px;background:var(--card);border:1px solid var(--line);border-radius:10px;
-  font-size:var(--t-sm);line-height:1.7;color:var(--mut);white-space:pre-wrap}
-.x{flex:none;align-self:flex-start;background:none;border:none;color:var(--faint);font-size:var(--t-md);line-height:1;cursor:pointer;padding:2px 5px;opacity:0}
+/* Timeline: a rail down the left, one event per note. The dot and connector carry the
+   grouping, so rows need no dividing borders. */
+.e{display:flex;gap:0;position:relative}
+.etime{width:78px;flex:none;text-align:right;padding:14px 14px 0 0;font-family:var(--mono);
+  font-size:var(--t-xs);color:var(--faint);font-variant-numeric:tabular-nums;white-space:nowrap}
+.erail{width:17px;flex:none;position:relative}
+.erail::before{content:"";position:absolute;left:8px;top:0;bottom:0;width:1px;background:var(--line)}
+.e:first-child .erail::before{top:19px}
+.e:last-child .erail::before{bottom:auto;height:19px}
+.edot{position:absolute;left:4px;top:19px;width:9px;height:9px;border-radius:50%;
+  background:var(--card);border:2px solid var(--faint);z-index:1}
+.e.now .edot{border-color:var(--s1);background:var(--s1)}
+.emain{flex:1;min-width:0;padding:13px 0 17px 12px}
+.eti{font-size:var(--t-md);font-weight:600;letter-spacing:-.01em;cursor:pointer;line-height:1.3}
+.eti:hover{color:var(--accent)}
+.esu{font-size:var(--t-sm);color:var(--mut);line-height:1.55;margin-top:4px}
+/* Real app marks. Identity rides on the icon, with the name in the tooltip, so nothing
+   depends on recognising a colour. */
+.eicons{display:flex;align-items:center;gap:6px;margin-top:9px;flex-wrap:wrap}
+.eicons img{width:19px;height:19px;border-radius:4px;object-fit:contain}
+.eicons .site{font-family:var(--mono);font-size:10.5px;color:var(--mut);background:var(--grid);
+  border-radius:5px;padding:2px 6px}
+.ebody{margin-top:10px;padding:11px 13px;background:var(--card);border:1px solid var(--line);
+  border-radius:10px;font-size:var(--t-sm);line-height:1.7;color:var(--mut);white-space:pre-wrap}
+.x{flex:none;align-self:flex-start;margin-top:14px;background:none;border:none;color:var(--faint);
+  font-size:var(--t-md);line-height:1;cursor:pointer;padding:2px 5px;opacity:0}
 .e:hover .x{opacity:1}
 .x:hover{color:#c0504d}
 .none{font-family:var(--mono);font-size:var(--t-sm);color:var(--faint);background:var(--card);
@@ -184,27 +197,42 @@ function render(){
     `${e.title} ${e.summary} ${e.body} ${e.apps.join(' ')} ${e.sites.join(' ')} ${e.project||''}`.toLowerCase().includes(q));
   const el = document.getElementById('list');
   if (!list.length){
-    el.innerHTML = `<div class="none">${q ? 'Nothing on this day matches “'+esc(q)+'”.'
-      : 'No memories for this day.<br>Run <code>myday rollup</code>, or <code>myday start</code> if the daemon is off.'}</div>`;
+    el.innerHTML = `<div class="none">${q ? 'Nothing on this day matches \u201c'+esc(q)+'\u201d.'
+      : 'No notes for this day.<br>My Day writes one every ten minutes while you work.'}</div>`;
     return;
   }
+  const t12 = hhmm => {
+    const [h,m] = hhmm.split(':').map(Number);
+    return `${h%12===0?12:h%12}:${String(m).padStart(2,'0')} ${h<12?'AM':'PM'}`;
+  };
+  const now = new Date();
+  const nowSlot = now.getHours()*60 + Math.floor(now.getMinutes()/10)*10;
+
   el.innerHTML = list.map(e=>{
     const k = e.date+e.slot, o = open.has(k);
-    const chips = [...new Set([...e.apps.slice(0,3), ...e.sites.slice(0,2)])].map(x=>`<span class="c">${esc(x)}</span>`).join('')
-      + (e.project?`<span class="c">${esc(e.project)}</span>`:'')
-      + (e.generator!=='local'?'':'<span class="c">local</span>');
-    return `<div class="e">
-      <div class="t"><b>${e.start}</b>${e.end}</div>
-      <div class="m">
-        <div class="ti" data-k="${k}">${esc(e.title)}</div>
-        ${e.summary?`<div class="su">${esc(e.summary)}</div>`:''}
-        ${chips?`<div class="ch">${chips}</div>`:''}
-        ${o?`<div class="bd">${md(e.body)}</div>`:''}
+    const [hh,mm] = e.start.split(':').map(Number);
+    const live = e.date === D.date && (hh*60+mm) === nowSlot;
+    // Icons for apps. Sites and project stay as text: a favicon would need a network
+    // request, and this page never makes one.
+    const icons = e.apps.slice(0,5).map(a =>
+      `<img src="/api/icon/${encodeURIComponent(a)}" alt="${esc(a)}" title="${esc(a)}" loading="lazy"
+            onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'site',textContent:${JSON.stringify(a)}}))">`).join('');
+    const sites = e.sites.slice(0,3).map(x=>`<span class="site">${esc(x)}</span>`).join('');
+    const proj  = e.project ? `<span class="site">${esc(e.project)}</span>` : '';
+    return `<div class="e ${live?'now':''}">
+      <div class="etime">${t12(e.start)}</div>
+      <div class="erail"><span class="edot"></span></div>
+      <div class="emain">
+        <div class="eti" data-k="${k}">${esc(e.title)}</div>
+        ${e.summary?`<div class="esu">${esc(e.summary)}</div>`:''}
+        ${(icons||sites||proj)?`<div class="eicons">${icons}${sites}${proj}</div>`:''}
+        ${o?`<div class="ebody">${md(e.body)}</div>`:''}
       </div>
       <button class="x" data-d="${e.date}" data-s="${e.slot}" title="forget this">×</button>
     </div>`;
   }).join('');
-  el.querySelectorAll('.ti').forEach(t=>t.onclick=()=>{
+
+  el.querySelectorAll('.eti').forEach(t=>t.onclick=()=>{
     const k=t.dataset.k; open.has(k)?open.delete(k):open.add(k); render();
   });
   el.querySelectorAll('.x').forEach(b=>b.onclick=async()=>{

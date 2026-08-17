@@ -97,6 +97,17 @@ enum Store {
         return (lines.count, titled)
     }
 
+    /// Title coverage over the last few samples. Used instead of AXIsProcessTrusted for
+    /// anything user-facing, because the API answers for this process at this instant while
+    /// the samples say whether capture is genuinely working.
+    static func recentTitleRate(_ n: Int = 20) -> (samples: Int, titled: Int) {
+        guard let s = try? String(contentsOf: raw.appendingPathComponent("\(todayKey()).jsonl"), encoding: .utf8)
+        else { return (0, 0) }
+        let lines = s.split(separator: "\n").suffix(n)
+        let titled = lines.filter { $0.contains("\"title\":\"") && !$0.contains("\"title\":\"\"") }.count
+        return (lines.count, titled)
+    }
+
     static func memoryCount(_ date: String = todayKey()) -> Int {
         (try? FileManager.default.contentsOfDirectory(atPath: memories.appendingPathComponent(date).path))?
             .filter { $0.hasSuffix(".md") }.count ?? 0

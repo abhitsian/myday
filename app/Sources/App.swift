@@ -10,7 +10,7 @@ import WebKit
 // in the Accessibility list, one thing to quit.
 
 @main
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// NSApplication.delegate is a WEAK reference. A delegate held only by a local in
     /// main() is deallocated the moment main() returns, taking the status item, the
     /// sampler and every window with it — the app runs and does nothing at all.
@@ -73,9 +73,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // exactly like the app failing to launch. Never leave it with nothing.
             statusItem.button?.title = "◔"
         }
-        statusItem.menu = NSMenu()
+        let menu = NSMenu()
+        // Without this the menu shows whatever was true when it was last built. Grant
+        // Accessibility while the app is running and the warning stays up forever, which
+        // reads as the permission not having worked.
+        menu.delegate = self
+        statusItem.menu = menu
         refreshMenu()
     }
+
+    /// Rebuild every time the menu is opened, so what it says is what is true now.
+    func menuNeedsUpdate(_ menu: NSMenu) { refreshMenu() }
 
     @objc private func refreshMenu() {
         guard let menu = statusItem?.menu else { return }
@@ -92,10 +100,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         header.isEnabled = false
         menu.addItem(header)
 
-        if Store.isSetUp && !paused && !Sampler.isTrusted {
-            let warn = NSMenuItem(title: "Window titles off — click to allow", action: #selector(fixPermission), keyEquivalent: "")
-            warn.target = self
-            menu.addItem(warn)
+        // Judge on what has actually been written, not on what the API reports. A grant
+        // made while the app is running can take a moment to reach this process, and the
+        // samples are the ground truth either way.
+        if Store.isSetUp && !paused {
+            let recent = Store.recentTitleRate()
+            if recent.samples >= 4 && recent.titled == 0 {
+                let warn = NSMenuItem(title: "Window titles off — click to allow",
+                                      action: #selector(fixPermission), keyEquivalent: "")
+                warn.target = self
+                menu.addItem(warn)
+            }
         }
 
         menu.addItem(.separator())
