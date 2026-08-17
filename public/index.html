@@ -10,6 +10,12 @@
   --accent:#4a5d7e; --warn:#b0762a;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  /* Four steps, ~1.25 between each. A list you scan needs the title to win on size;
+     everything below it separates by weight and colour instead of by another half-pixel. */
+  --t-xs:11px;    /* mono meta — chips, pills, the time gutter, footer */
+  --t-sm:13.5px;  /* prose — summaries, bodies, inputs */
+  --t-md:17px;    /* entry titles */
+  --t-lg:22px;    /* page title */
 }
 @media (prefers-color-scheme:dark){
   :root{ --bg:#16161a; --card:#1e1e23; --ink:#eceae6; --mut:#9d9a94; --faint:#6d6a65; --line:#2c2c33;
@@ -19,35 +25,35 @@
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
 .wrap{max-width:900px;margin:0 auto;padding:28px 22px 80px}
 header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:20px}
-h1{font-size:19px;margin:0;letter-spacing:-.01em}
+h1{font-size:var(--t-lg);margin:0;letter-spacing:-.02em;font-weight:600}
 h1 span{color:var(--faint);font-weight:400}
 .bar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
-.pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-family:var(--mono);font-size:11.5px;color:var(--mut)}
+.pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-family:var(--mono);font-size:var(--t-xs);color:var(--mut)}
 .pill b{color:var(--ink)}
-select,input{font-family:var(--sans);font-size:13.5px;background:var(--card);color:var(--ink);
+select,input{font-family:var(--sans);font-size:var(--t-sm);background:var(--card);color:var(--ink);
   border:1px solid var(--line);border-radius:9px;padding:8px 11px;outline:none}
 select:focus,input:focus{border-color:var(--mut)}
-#q{width:100%;margin-bottom:14px;font-size:14px;padding:10px 13px}
+#q{width:100%;margin-bottom:14px;padding:10px 13px}
 .warn{background:color-mix(in oklab,var(--warn) 8%,var(--card));border:1px solid color-mix(in oklab,var(--warn) 28%,var(--line));
-  color:var(--warn);border-radius:10px;padding:9px 13px;font-family:var(--mono);font-size:11.5px;line-height:1.6;margin-bottom:14px}
+  color:var(--warn);border-radius:10px;padding:9px 13px;font-family:var(--mono);font-size:var(--t-xs);line-height:1.7;margin-bottom:14px}
 .e{display:flex;gap:14px;padding:13px 0;border-bottom:1px solid var(--line)}
 .e:last-child{border-bottom:none}
-.t{width:92px;flex:none;font-family:var(--mono);font-size:11px;color:var(--faint);padding-top:2px;font-variant-numeric:tabular-nums}
-.t b{display:block;color:var(--mut);font-size:12.5px;font-weight:500}
+.t{width:92px;flex:none;font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);padding-top:5px;font-variant-numeric:tabular-nums}
+.t b{display:block;color:var(--ink);font-weight:600}
 .m{flex:1;min-width:0}
-.ti{font-weight:600;font-size:14.5px;cursor:pointer;line-height:1.4}
+.ti{font-weight:600;font-size:var(--t-md);cursor:pointer;line-height:1.35;letter-spacing:-.01em}
 .ti:hover{color:var(--accent)}
-.su{font-size:13px;color:var(--mut);line-height:1.55;margin-top:2px}
+.su{font-size:var(--t-sm);color:var(--mut);line-height:1.55;margin-top:4px}
 .ch{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
-.c{font-family:var(--mono);font-size:10.5px;color:var(--mut);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 7px}
+.c{font-family:var(--mono);font-size:var(--t-xs);color:var(--mut);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 7px}
 .bd{margin-top:9px;padding:11px 13px;background:var(--card);border:1px solid var(--line);border-radius:10px;
-  font-size:13px;line-height:1.7;color:var(--mut);white-space:pre-wrap}
-.x{flex:none;align-self:flex-start;background:none;border:none;color:var(--faint);font-size:15px;cursor:pointer;padding:2px 5px;opacity:0}
+  font-size:var(--t-sm);line-height:1.7;color:var(--mut);white-space:pre-wrap}
+.x{flex:none;align-self:flex-start;background:none;border:none;color:var(--faint);font-size:var(--t-md);line-height:1;cursor:pointer;padding:2px 5px;opacity:0}
 .e:hover .x{opacity:1}
 .x:hover{color:#c0504d}
-.none{font-family:var(--mono);font-size:12.5px;color:var(--faint);background:var(--card);
+.none{font-family:var(--mono);font-size:var(--t-sm);color:var(--faint);background:var(--card);
   border:1px dashed var(--line);border-radius:12px;padding:26px;text-align:center;line-height:1.9}
-footer{margin-top:26px;font-family:var(--mono);font-size:11px;color:var(--faint);line-height:1.8}
+footer{margin-top:26px;font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);line-height:1.8}
 </style>
 </head>
 <body>
@@ -110,7 +116,7 @@ function render(){
   }
   el.innerHTML = list.map(e=>{
     const k = e.date+e.slot, o = open.has(k);
-    const chips = [...e.apps.slice(0,3), ...e.sites.slice(0,2)].map(x=>`<span class="c">${esc(x)}</span>`).join('')
+    const chips = [...new Set([...e.apps.slice(0,3), ...e.sites.slice(0,2)])].map(x=>`<span class="c">${esc(x)}</span>`).join('')
       + (e.project?`<span class="c">${esc(e.project)}</span>`:'')
       + (e.generator!=='local'?'':'<span class="c">local</span>');
     return `<div class="e">
