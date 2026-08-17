@@ -1,0 +1,19 @@
+{
+  "name": "backscroll",
+  "version": "0.1.0",
+  "description": "A private, local memory of what you did on your Mac — 10-minute Markdown records, searchable, and readable by your AI coding agent over MCP",
+  "keywords": ["mcp", "memory", "activity", "macos", "productivity", "claude", "agent", "privacy", "local-first"],
+  "bin": {
+    "backscroll": "bin/backscroll.js",
+    "backscroll-mcp": "mcp/server.js"
+  },
+  "main": "lib/store.js",
+  "type": "commonjs",
+  "engines": { "node": ">=18" },
+  "os": ["darwin"],
+  "license": "MIT",
+  "files": ["bin", "lib", "mcp", "helper", "public", "README.md", "THREAT-MODEL.md", "LICENSE"],
+  "scripts": {
+    "postinstall": "node -e \"console.log('\\nbackscroll installed. Run: backscroll init\\n')\""
+  }
+}

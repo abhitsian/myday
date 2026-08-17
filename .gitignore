@@ -1,0 +1,4 @@
+node_modules/
+helper/frontwindow
+*.log
+.DS_Store

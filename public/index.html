@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>backscroll</title>
+<style>
+:root{
+  --bg:#f7f6f3; --card:#fffefc; --ink:#1a1a18; --mut:#6b6862; --faint:#9c988f; --line:#e6e3dc;
+  --accent:#4a5d7e; --warn:#b0762a;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#16161a; --card:#1e1e23; --ink:#eceae6; --mut:#9d9a94; --faint:#6d6a65; --line:#2c2c33;
+         --accent:#8fa8cd; --warn:#d5a24f; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{max-width:900px;margin:0 auto;padding:28px 22px 80px}
+header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+h1{font-size:19px;margin:0;letter-spacing:-.01em}
+h1 span{color:var(--faint);font-weight:400}
+.bar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-family:var(--mono);font-size:11.5px;color:var(--mut)}
+.pill b{color:var(--ink)}
+select,input{font-family:var(--sans);font-size:13.5px;background:var(--card);color:var(--ink);
+  border:1px solid var(--line);border-radius:9px;padding:8px 11px;outline:none}
+select:focus,input:focus{border-color:var(--mut)}
+#q{width:100%;margin-bottom:14px;font-size:14px;padding:10px 13px}
+.warn{background:color-mix(in oklab,var(--warn) 8%,var(--card));border:1px solid color-mix(in oklab,var(--warn) 28%,var(--line));
+  color:var(--warn);border-radius:10px;padding:9px 13px;font-family:var(--mono);font-size:11.5px;line-height:1.6;margin-bottom:14px}
+.e{display:flex;gap:14px;padding:13px 0;border-bottom:1px solid var(--line)}
+.e:last-child{border-bottom:none}
+.t{width:92px;flex:none;font-family:var(--mono);font-size:11px;color:var(--faint);padding-top:2px;font-variant-numeric:tabular-nums}
+.t b{display:block;color:var(--mut);font-size:12.5px;font-weight:500}
+.m{flex:1;min-width:0}
+.ti{font-weight:600;font-size:14.5px;cursor:pointer;line-height:1.4}
+.ti:hover{color:var(--accent)}
+.su{font-size:13px;color:var(--mut);line-height:1.55;margin-top:2px}
+.ch{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.c{font-family:var(--mono);font-size:10.5px;color:var(--mut);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 7px}
+.bd{margin-top:9px;padding:11px 13px;background:var(--card);border:1px solid var(--line);border-radius:10px;
+  font-size:13px;line-height:1.7;color:var(--mut);white-space:pre-wrap}
+.x{flex:none;align-self:flex-start;background:none;border:none;color:var(--faint);font-size:15px;cursor:pointer;padding:2px 5px;opacity:0}
+.e:hover .x{opacity:1}
+.x:hover{color:#c0504d}
+.none{font-family:var(--mono);font-size:12.5px;color:var(--faint);background:var(--card);
+  border:1px dashed var(--line);border-radius:12px;padding:26px;text-align:center;line-height:1.9}
+footer{margin-top:26px;font-family:var(--mono);font-size:11px;color:var(--faint);line-height:1.8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>backscroll <span>— what you did</span></h1>
+    <select id="date"></select>
+  </header>
+  <div class="bar" id="bar"></div>
+  <div id="warn"></div>
+  <input id="q" type="search" placeholder="Filter this day — an app, a page, a word…" autocomplete="off">
+  <div id="list"></div>
+  <footer>
+    Everything here is a plain Markdown file under <code>~/.backscroll/memories/</code>.<br>
+    Delete one with the ×, or delete the file. Nothing is uploaded.
+  </footer>
+</div>
+<script>
+const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const md  = s => esc(s).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>');
+let D = null, open = new Set();
+
+async function load(date){
+  const r = await fetch('/api/day' + (date ? '?date='+date : ''));
+  D = await r.json();
+
+  const sel = document.getElementById('date');
+  if (sel.options.length !== (D.dates||[]).length) {
+    sel.innerHTML = (D.dates||[D.date]).map(d=>`<option${d===D.date?' selected':''}>${d}</option>`).join('');
+  }
+  sel.value = D.date;
+
+  const active = Math.round(D.entries.reduce((a,e)=>a+(e.activeSec||0),0)/60);
+  document.getElementById('bar').innerHTML =
+    `<span class="pill"><b>${D.entries.length}</b> memories</span>`+
+    `<span class="pill"><b>${active}m</b> active</span>`+
+    `<span class="pill"><b>${D.capture.samples}</b> samples</span>`+
+    `<span class="pill">${D.paused?'paused':'recording'}</span>`+
+    `<span class="pill">${esc(D.summarizer)}</span>`;
+
+  const w = [];
+  if (D.capture.samples > 40 && D.capture.titlePct === 0)
+    w.push('Window titles are not being captured — app names and page titles only. <code>backscroll build-helper</code> then grant that one binary Accessibility.');
+  if (D.summarizer === 'local' && D.entries.length)
+    w.push('Summaries are local digests. <code>backscroll config summarizer claude-cli</code> writes them with a model instead.');
+  document.getElementById('warn').innerHTML = w.map(x=>`<div class="warn">${x}</div>`).join('');
+
+  render();
+}
+
+function render(){
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const list = D.entries.filter(e => !q ||
+    `${e.title} ${e.summary} ${e.body} ${e.apps.join(' ')} ${e.sites.join(' ')} ${e.project||''}`.toLowerCase().includes(q));
+  const el = document.getElementById('list');
+  if (!list.length){
+    el.innerHTML = `<div class="none">${q ? 'Nothing on this day matches “'+esc(q)+'”.'
+      : 'No memories for this day.<br>Run <code>backscroll rollup</code>, or <code>backscroll start</code> if the daemon is off.'}</div>`;
+    return;
+  }
+  el.innerHTML = list.map(e=>{
+    const k = e.date+e.slot, o = open.has(k);
+    const chips = [...e.apps.slice(0,3), ...e.sites.slice(0,2)].map(x=>`<span class="c">${esc(x)}</span>`).join('')
+      + (e.project?`<span class="c">${esc(e.project)}</span>`:'')
+      + (e.generator!=='local'?'':'<span class="c">local</span>');
+    return `<div class="e">
+      <div class="t"><b>${e.start}</b>${e.end}</div>
+      <div class="m">
+        <div class="ti" data-k="${k}">${esc(e.title)}</div>
+        ${e.summary?`<div class="su">${esc(e.summary)}</div>`:''}
+        ${chips?`<div class="ch">${chips}</div>`:''}
+        ${o?`<div class="bd">${md(e.body)}</div>`:''}
+      </div>
+      <button class="x" data-d="${e.date}" data-s="${e.slot}" title="forget this">×</button>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.ti').forEach(t=>t.onclick=()=>{
+    const k=t.dataset.k; open.has(k)?open.delete(k):open.add(k); render();
+  });
+  el.querySelectorAll('.x').forEach(b=>b.onclick=async()=>{
+    await fetch('/api/delete',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({date:b.dataset.d,slot:b.dataset.s})});
+    load(D.date);
+  });
+}
+
+document.getElementById('q').oninput = () => render();
+document.getElementById('date').onchange = e => load(e.target.value);
+load();
+</script>
+</body>
+</html>
