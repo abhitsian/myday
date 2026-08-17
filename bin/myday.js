@@ -389,9 +389,10 @@ function cmdView() {
       });
       res.writeHead(200, { 'content-type': 'application/json' }); return res.end(body);
     }
-    if (u.pathname === '/api/apps' || u.pathname === '/api/browse' || u.pathname === '/api/sessions') {
+    if (['/api/apps', '/api/browse', '/api/sessions', '/api/home'].includes(u.pathname)) {
       const date = u.searchParams.get('date') || S.isoDate();
-      const fn = u.pathname === '/api/apps' ? A.appsDay : u.pathname === '/api/browse' ? A.browseDay : A.sessionsDay;
+      const fn = u.pathname === '/api/apps' ? A.appsDay : u.pathname === '/api/browse' ? A.browseDay
+        : u.pathname === '/api/home' ? A.homeDay : A.sessionsDay;
       let out; try { out = fn(date); } catch (e) { out = { error: e.message }; }
       res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify(out));
     }
@@ -410,7 +411,9 @@ function cmdView() {
   // being reachable from the network.
   srv.listen(port, '127.0.0.1', () => {
     say(`Viewer on http://localhost:${port}  (ctrl-c to stop)`);
-    try { execFileSync('open', [`http://localhost:${port}`]); } catch {}
+    // The Mac app hosts this in its own window and passes --no-open, so the browser does
+    // not also launch a duplicate tab.
+    if (!flag('no-open')) { try { execFileSync('open', [`http://localhost:${port}`]); } catch {} }
   });
 }
 

@@ -16,10 +16,21 @@
   --t-sm:13.5px;  /* prose — summaries, bodies, inputs */
   --t-md:17px;    /* entry titles */
   --t-lg:22px;    /* page title */
+  --t-xl:34px;    /* hero numbers on the home view */
+
+  /* Categorical series, validated for CVD and contrast in both modes. Fixed order,
+     never cycled, and assigned per app name so a filter cannot repaint the survivors. */
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+  --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
+  --grid:rgba(0,0,0,.07);
 }
 @media (prefers-color-scheme:dark){
   :root{ --bg:#16161a; --card:#1e1e23; --ink:#eceae6; --mut:#9d9a94; --faint:#6d6a65; --line:#2c2c33;
-         --accent:#8fa8cd; --warn:#d5a24f; }
+         --accent:#8fa8cd; --warn:#d5a24f;
+         /* Same eight hues re-stepped for the dark surface, not an automatic flip. */
+         --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+         --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+         --grid:rgba(255,255,255,.09); }
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
@@ -70,6 +81,44 @@ select:focus,input:focus{border-color:var(--mut)}
 .blm{flex:1;min-width:0}
 .blh{font-weight:600}
 .bli{color:var(--mut);line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* ── Home ── */
+.hero{margin-bottom:22px}
+.hgreet{font-size:var(--t-lg);font-weight:600;letter-spacing:-.02em}
+.hsub{font-size:var(--t-sm);color:var(--mut);margin-top:3px}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0 22px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+.tile .k{font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);letter-spacing:.04em;text-transform:uppercase}
+.tile .v{font-size:var(--t-xl);font-weight:600;letter-spacing:-.02em;line-height:1.1;margin-top:5px;font-variant-numeric:tabular-nums}
+.tile .n{font-size:var(--t-xs);color:var(--mut);margin-top:3px;font-family:var(--mono)}
+.sec{font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);letter-spacing:.06em;text-transform:uppercase;margin:24px 0 10px}
+/* Day shape: one column per hour, height = minutes present, fill = the hour's top app. */
+.shape{display:flex;align-items:flex-end;gap:3px;height:88px;padding:10px 12px 0;
+  background:var(--card);border:1px solid var(--line);border-radius:12px}
+.hr{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative;cursor:default}
+.hr i{display:block;border-radius:4px 4px 0 0;min-height:2px;transition:opacity .12s}
+.hr:hover i{opacity:.7}
+.hraxis{display:flex;gap:3px;padding:5px 12px 0;font-family:var(--mono);font-size:9.5px;color:var(--faint)}
+.hraxis span{flex:1;text-align:center}
+.legend{display:flex;flex-wrap:wrap;gap:11px;margin-top:10px;font-family:var(--mono);font-size:var(--t-xs);color:var(--mut)}
+.legend i{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+.ins{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.in{display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--line);
+  border-radius:11px;padding:11px 13px;font-size:var(--t-sm);line-height:1.5}
+.in .em{font-size:14px;line-height:1.2;flex:none;opacity:.85}
+.in b{font-weight:600}
+.in.warn{border-color:color-mix(in oklab,var(--s2) 40%,var(--line))}
+.in.good{border-color:color-mix(in oklab,var(--s3) 40%,var(--line))}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.brow{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:var(--t-sm)}
+.bname{width:132px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btrack{flex:1;height:8px;background:var(--grid);border-radius:4px;overflow:hidden}
+.btrack i{display:block;height:100%;border-radius:4px}
+.bval{width:76px;text-align:right;font-family:var(--mono);font-size:var(--t-xs);color:var(--mut);font-variant-numeric:tabular-nums}
+.week{display:flex;align-items:flex-end;gap:6px;height:56px}
+.wd{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end}
+.wd i{width:100%;border-radius:4px 4px 0 0;background:var(--accent);min-height:2px;opacity:.85}
+.wd.today i{background:var(--s1);opacity:1}
+.wd span{font-family:var(--mono);font-size:9.5px;color:var(--faint)}
 footer{margin-top:26px;font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);line-height:1.8}
 </style>
 </head>
@@ -82,7 +131,8 @@ footer{margin-top:26px;font-family:var(--mono);font-size:var(--t-xs);color:var(-
   <div class="bar" id="bar"></div>
   <div id="warn"></div>
   <div class="tabs" id="tabs">
-    <button class="tab on" data-v="memories">Memories</button>
+    <button class="tab on" data-v="home">Home</button>
+    <button class="tab" data-v="memories">Memories</button>
     <button class="tab" data-v="apps">Apps</button>
     <button class="tab" data-v="browse">Browse</button>
     <button class="tab" data-v="sessions">Sessions</button>
@@ -164,15 +214,31 @@ function render(){
   });
 }
 
-let view = 'memories';
-const durm = s => s>=3600 ? `${Math.floor(s/3600)}h ${String(Math.round(s%3600/60)).padStart(2,'0')}m` : `${Math.round(s/60)}m`;
+let view = 'home';
 const rows = items => items.map(i =>
   `<div class="row"><span class="rname" title="${esc(i.name)}">${esc(i.name)}</span>`+
   `<span class="rbar"><i style="width:${i.pct}%"></i></span><span class="rval">${esc(i.val)}</span></div>`).join('');
 
+// Colour follows the app, not its rank. Slots are handed out by sorted name across the
+// day's set, so re-sorting the bars or filtering the list never repaints a series, and no
+// two visible apps can land on the same hue. Hashing the name was the first attempt and it
+// collided immediately — Teams and Terminal came out the same pink.
+// Eight fixed hues, never cycled: a ninth app gets neutral rather than an invented colour.
+const SERIES = ['--s1','--s2','--s3','--s4','--s5','--s6','--s7','--s8'];
+let _slots = new Map();
+function assignHues(names){
+  _slots = new Map();
+  [...new Set(names)].sort().forEach((n, i) => {
+    _slots.set(n, i < SERIES.length ? `var(${SERIES[i]})` : 'var(--faint)');
+  });
+}
+const hue = (name) => _slots.get(name) || 'var(--faint)';
+const durm = s => s>=3600 ? `${Math.floor(s/3600)}h ${String(Math.round(s%3600/60)).padStart(2,'0')}m` : `${Math.round(s/60)}m`;
+const bold = s => esc(s).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+const ICON = {target:'◎',shuffle:'⇄',clock:'◷',sun:'☀',chart:'▤',code:'⌘',globe:'◍',span:'⟷'};
+
 async function renderPane(){
   const list = document.getElementById('list'), pane = document.getElementById('pane'), q = document.getElementById('q');
-  list.classList.toggle('hidden', view!=='memories');
   list.style.display = view==='memories' ? '' : 'none';
   q.style.display = view==='memories' ? '' : 'none';
   pane.style.display = view==='memories' ? 'none' : '';
@@ -180,6 +246,69 @@ async function renderPane(){
 
   pane.innerHTML = '<div class="none">loading…</div>';
   const d = await (await fetch(`/api/${view}?date=${D.date}`)).json();
+
+  if (view==='home'){
+    if (!d.stats || !d.stats.activeSec) return pane.innerHTML =
+      '<div class="none">Nothing recorded for this day yet.<br>My Day writes its first note within ten minutes of you working.</div>';
+    const st = d.stats;
+    // Fix the colour assignment once for the whole view, from every app the day contains.
+    assignHues([...(d.apps||[]).map(a=>a.app), ...d.hours.map(x=>x.top && x.top[0]).filter(Boolean)]);
+    const hh = new Date().getHours();
+    const greet = hh<12 ? 'Good morning' : hh<18 ? 'Good afternoon' : 'Good evening';
+    const maxHour = Math.max(...d.hours.map(x=>x.secs), 1);
+    const apps = d.apps || [];
+    const maxApp = Math.max(...apps.map(a=>a.secs), 1);
+    const maxWeek = Math.max(...(d.weekDays||[]).map(w=>w.secs), 1);
+    const dayName = iso => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(iso+'T12:00:00').getDay()];
+
+    pane.innerHTML =
+      `<div class="hero"><div class="hgreet">${greet}</div>`+
+      `<div class="hsub">${st.first? st.first.slice(11,16):'—'} to ${st.last? st.last.slice(11,16):'—'} · `+
+      `${d.insights.length} thing${d.insights.length===1?'':'s'} worth noticing</div></div>`+
+
+      `<div class="tiles">`+
+        tile('at the machine', durm(st.activeSec), st.avgActiveSec? `usual ${durm(st.avgActiveSec)}`:'')+
+        tile('longest stretch', durm(st.longestSec), st.longestApp||'')+
+        tile('app switches', String(st.switches), `${st.switchesPerHour}/hr`)+
+        tile('notes written', String(st.notes), st.notes? 'searchable':'none yet')+
+      `</div>`+
+
+      `<div class="sec">the shape of your day</div>`+
+      `<div class="shape">`+ d.hours.map(x=>{
+        const pct = Math.round(x.secs/maxHour*100);
+        const app = x.top? x.top[0] : null;
+        const t = x.secs? `${String(x.h).padStart(2,'0')}:00 — ${Math.round(x.secs/60)}m${app?' · '+app:''}` : `${String(x.h).padStart(2,'0')}:00 — away`;
+        return `<span class="hr" title="${esc(t)}"><i style="height:${pct}%;background:${app?hue(app):'var(--grid)'}"></i></span>`;
+      }).join('') + `</div>`+
+      `<div class="hraxis">`+ d.hours.map(x=> x.h%6===0? `<span>${String(x.h).padStart(2,'0')}</span>` : '<span></span>').join('') +`</div>`+
+      `<div class="legend">`+ apps.slice(0,6).map(a=>`<span><i style="background:${hue(a.app)}"></i>${esc(a.app)}</span>`).join('') +`</div>`+
+
+      (d.insights.length? `<div class="sec">what stands out</div><div class="ins">`+
+        d.insights.map(i=>`<div class="in ${i.kind==='warn'?'warn':i.kind==='good'?'good':''}">`+
+          `<span class="em">${ICON[i.icon]||'•'}</span><span>${bold(i.text)}</span></div>`).join('')+`</div>` : '')+
+
+      `<div class="two">`+
+        `<div><div class="sec">where the time went</div>`+
+          apps.map(a=>`<div class="brow"><span class="bname" title="${esc(a.app)}">${esc(a.app)}</span>`+
+            `<span class="btrack"><i style="width:${Math.round(a.secs/maxApp*100)}%;background:${hue(a.app)}"></i></span>`+
+            `<span class="bval">${durm(a.secs)} · ${a.pct}%</span></div>`).join('')+
+        `</div>`+
+        `<div><div class="sec">what you read</div>`+
+          ((d.sites||[]).length? d.sites.map(h=>`<div class="brow"><span class="bname" title="${esc(h.host)}">${esc(h.host)}</span>`+
+            `<span class="btrack"><i style="width:${Math.round(h.visits/Math.max(...d.sites.map(x=>x.visits),1)*100)}%;background:var(--accent)"></i></span>`+
+            `<span class="bval">${h.visits}</span></div>`).join('') : '<div class="bval" style="text-align:left">no browsing recorded</div>')+
+          ((d.projects||[]).length? `<div class="sec">what you built</div>`+
+            d.projects.map(p=>`<div class="brow"><span class="bname">${esc(p.project)}</span>`+
+              `<span class="btrack"><i style="width:${Math.round(p.mins/Math.max(...d.projects.map(x=>x.mins),1)*100)}%;background:var(--s7)"></i></span>`+
+              `<span class="bval">${p.mins}m</span></div>`).join('') : '')+
+        `</div>`+
+      `</div>`+
+
+      `<div class="sec">last seven days</div><div class="week">`+
+        (d.weekDays||[]).map(w=>`<div class="wd ${w.date===d.date?'today':''}" title="${w.date} · ${durm(w.secs)}">`+
+          `<i style="height:${Math.round(w.secs/maxWeek*100)}%"></i><span>${dayName(w.date)}</span></div>`).join('')+
+      `</div>`;
+  }
 
   if (view==='apps'){
     if (!d.apps || !d.apps.length) return pane.innerHTML =
@@ -217,6 +346,8 @@ async function renderPane(){
         `<div class="bli">${esc(s.prompt)}</div></div></div>`).join('');
   }
 }
+
+function tile(k,v,n){ return `<div class="tile"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div><div class="n">${esc(n)}</div></div>`; }
 
 document.getElementById('tabs').onclick = e => {
   const b = e.target.closest('.tab'); if (!b) return;

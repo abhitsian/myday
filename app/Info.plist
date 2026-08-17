@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key><string>My Day</string>
+  <key>CFBundleDisplayName</key><string>My Day</string>
+  <key>CFBundleIdentifier</key><string>com.abhitsian.myday</string>
+  <key>CFBundleVersion</key><string>0.1.0</string>
+  <key>CFBundleShortVersionString</key><string>0.1.0</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleExecutable</key><string>MyDay</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>LSMinimumSystemVersion</key><string>13.0</string>
+  <!-- Menu bar app: no Dock icon, windows are opened from the menu. -->
+  <key>LSUIElement</key><true/>
+  <key>NSHighResolutionCapable</key><true/>
+  <!-- Shown in the system prompt when the app asks to read window titles. -->
+  <key>NSAccessibilityUsageDescription</key>
+  <string>My Day reads the title of the window you are working in, so your notes say which document or conversation you were in rather than only which app.</string>
+  <key>NSAppleEventsUsageDescription</key>
+  <string>My Day does not send Apple Events. This entry exists only so macOS never prompts silently.</string>
+</dict>
+</plist>
