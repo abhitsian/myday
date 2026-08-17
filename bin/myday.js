@@ -148,29 +148,53 @@ function cmdStatus() {
   say(`  daemon        ${running ? 'running' : 'not running'}${cfg.paused ? ' (paused)' : ''}`);
   say(`  today         ${raw.length} samples · ${entries.length} memories · ${Math.round(entries.reduce((a, e) => a + e.activeSec, 0) / 60)}m active`);
   say(`  app names     ${caps.appNames ? 'yes' : 'NO — lsappinfo unavailable'}`);
-  say(`  window titles ${caps.windowTitles ? 'yes' : caps.helperBuilt ? 'helper built, Accessibility not granted' : 'helper not built'} (${raw.length ? Math.round(titled / raw.length * 100) : 0}% of today's samples)`);
+  const titlePct = raw.length ? Math.round(titled / raw.length * 100) : 0;
+  const titleState = !caps.helperBuilt ? 'helper not built — run `myday build-helper`'
+    : caps.windowTitles ? `yes (${titlePct}% of today's samples)`
+    : caps.recentSamples < 4 ? 'helper built, waiting for samples to confirm'
+    : `NOT reaching the daemon — grant Accessibility to ${C.HELPER}`;
+  say(`  window titles ${titleState}`);
+  if (caps.helperBuilt && !caps.windowTitles && caps.cliTrusted && caps.recentSamples >= 4) {
+    say(`                (it works from this terminal but not from the daemon; the grant is per-binary-per-process)`);
+  }
+  if (cfg.helperSignature && caps.helperBuilt && helperSignature() && cfg.helperSignature !== helperSignature()) {
+    say(`  ⚠ helper was rebuilt since you granted it — the Accessibility entry is stale, remove and re-add`);
+  }
   say(`  browsers      ${cfg.captureBrowsers ? (B.installed().join(', ') || 'none found') : 'disabled'}`);
   say(`  summarizer    ${cfg.summarizer}${cfg.summarizer !== 'local' ? ' · ' + cfg.model : ' (nothing leaves this machine)'}`);
   say(`  excluded      ${(cfg.excludeApps || []).length} apps · ${(cfg.excludeSites || []).length} site patterns`);
   say(`  storage       ${S.ROOT}  (raw kept ${cfg.rawRetentionDays}d, memories kept forever)`);
-  if (!caps.windowTitles && caps.helperBuilt) {
-    say(`\n  To capture window titles, grant Accessibility to just this one binary:`);
-    say(`    System Settings → Privacy & Security → Accessibility → +`);
-    say(`    ${C.HELPER}`);
-  }
+
 }
 
 // ---------------------------------------------------------------- helper
 function cmdBuildHelper() {
-  const src = path.join(__dirname, '..', 'helper', 'frontwindow.swift');
+  if (!requireInit()) return;
   try { execFileSync('which', ['swiftc'], { stdio: 'ignore' }); }
   catch { return say('swiftc not found. Install Xcode Command Line Tools:\n  xcode-select --install'); }
-  execFileSync('swiftc', ['-O', '-o', C.HELPER, src], { stdio: 'inherit' });
+  const prev = helperSignature();
+  fs.mkdirSync(path.dirname(C.HELPER), { recursive: true });
+  execFileSync('swiftc', ['-O', '-o', C.HELPER, C.HELPER_SRC], { stdio: 'inherit' });
   execFileSync('codesign', ['--force', '--sign', '-', '--identifier', 'com.myday.frontwindow', C.HELPER], { stdio: 'inherit' });
+  const now = helperSignature();
+  S.writeConfig({ helperSignature: now });
   say(`Built ${C.HELPER}`);
+  if (prev && now && prev !== now) {
+    say(`\n  The binary changed, so any Accessibility grant you had is now stale.`);
+    say(`  macOS still lists the old entry but no longer honours it.`);
+    say(`  Remove the existing entry and add it again.`);
+  }
   say(`\nGrant it Accessibility (this one binary only, not osascript):`);
   say(`  System Settings → Privacy & Security → Accessibility → + → ${C.HELPER}`);
-  say(`\nRebuilding invalidates the grant — remove and re-add the entry after any rebuild.`);
+}
+
+// The ad-hoc signature is the identity macOS remembers, so comparing it across builds is
+// what tells us a grant went stale. Cheaper and more accurate than hashing the file.
+function helperSignature() {
+  try {
+    const out = execSync(`codesign -dvvv ${JSON.stringify(C.HELPER)} 2>&1`, { encoding: 'utf8' });
+    return (out.match(/CandidateCDHash sha256=(\w+)/) || out.match(/CDHash=(\w+)/) || [])[1] || null;
+  } catch { return null; }
 }
 
 // ---------------------------------------------------------------- read
@@ -181,6 +205,7 @@ function fmtEntry(e, withDate) {
 }
 
 function cmdSearch() {
+  if (!requireInit()) return;
   const q = argv.slice(1).filter((a) => !a.startsWith('--')).join(' ');
   if (!q) return say('usage: myday search <query> [--days 30]');
   const hits = S.search(q, Number(val('days', 30)));
@@ -190,6 +215,7 @@ function cmdSearch() {
 }
 
 function cmdShow() {
+  if (!requireInit()) return;
   const date = val('date', S.isoDate());
   const entries = S.readEntries(date);
   if (!entries.length) return say(`Nothing for ${date}.`);
@@ -199,10 +225,22 @@ function cmdShow() {
 
 // ---------------------------------------------------------------- apps / browse / sessions
 // Views over data already captured. No model call, no new permission, no network.
+//
+// These read sources that exist whether or not myday does: the browser's history DB and
+// Claude Code's transcripts. Without this guard they answered in full before the user had
+// seen the consent screen, which is the one thing a tool like this must never do. `show`
+// and `search` are safe by construction — they read myday's own store, which is empty
+// until setup — but that is an accident of storage, not a decision, so they are gated too.
+function requireInit() {
+  if (S.initialized()) return true;
+  say('Not set up. Run `myday init` first — it explains what gets read before anything is read.');
+  return false;
+}
 const dur = (s) => (s >= 3600 ? `${Math.floor(s / 3600)}h ${S.pad(Math.round((s % 3600) / 60))}m` : `${Math.round(s / 60)}m`);
 const bar = (pct, w = 24) => '█'.repeat(Math.max(0, Math.round(pct / 100 * w))).padEnd(w, '·');
 
 function cmdApps() {
+  if (!requireInit()) return;
   const d = A.appsDay(val('date', S.isoDate()));
   if (!d.apps.length) return say(`No samples for ${d.date}. The daemon records these — check \`myday status\`.`);
   say(`${d.date} — ${dur(d.active)} at the machine · ${d.apps.length} apps · ${d.switches} switches (${d.switchesPerHour}/hr) · ${d.first.slice(11, 16)}–${d.last.slice(11, 16)}\n`);
@@ -219,6 +257,7 @@ function cmdApps() {
 }
 
 function cmdBrowse() {
+  if (!requireInit()) return;
   const d = A.browseDay(val('date', S.isoDate()));
   if (!d.blocks.length) return say(`No browsing recorded for ${d.date}.`);
   say(`${d.date} — ${d.visits} visits across ${d.hosts.length} sites\n`);
@@ -230,6 +269,7 @@ function cmdBrowse() {
 }
 
 function cmdSessions() {
+  if (!requireInit()) return;
   const d = A.sessionsDay(val('date', S.isoDate()));
   if (!d.available) return say('No Claude Code transcripts found (~/.claude/projects). This view is for Claude Code users.');
   if (!d.sessions.length) return say(`No sessions on ${d.date}.`);
@@ -265,6 +305,7 @@ function selectForAsk(question, days, budgetChars = 24000) {
 }
 
 async function cmdAsk() {
+  if (!requireInit()) return;
   const q = argv.slice(1).filter((a) => !a.startsWith('--')).join(' ');
   if (!q) return say('usage: myday ask "what was I debugging yesterday" [--days 7]');
   const cfg = S.readConfig();
@@ -332,6 +373,7 @@ function cmdConfig() {
 
 // ---------------------------------------------------------------- viewer
 function cmdView() {
+  if (!requireInit()) return;
   const port = Number(val('port', 7788));
   const file = path.join(__dirname, '..', 'public', 'index.html');
   const srv = http.createServer((req, res) => {
@@ -391,7 +433,9 @@ async function cmdRollup() {
   });
   for (const date of dates) {
     const r = await R.rollup({ date, force: flag('force'), limit: Number(val('limit', 60)), log: (m) => say('  ' + m) });
-    say(`${date}: ${r.written.length} written${r.skipped.length ? `, ${r.skipped.length} low-signal` : ''}`);
+    if (r.paused) { say('History is paused — `myday config paused false` to resume.'); continue; }
+    say(`${date}: ${r.written.length} written${r.skipped.length ? `, ${r.skipped.length} low-signal` : ''}`
+      + (r.reason ? ` — ${r.reason}` : ''));
   }
 }
 
