@@ -3,246 +3,300 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>myday</title>
+<title>My Day</title>
 <style>
-:root{
-  --bg:#f7f6f3; --card:#fffefc; --ink:#1a1a18; --mut:#6b6862; --faint:#9c988f; --line:#e6e3dc;
-  --accent:#4a5d7e; --warn:#b0762a;
-  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
-  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
-  /* Four steps, ~1.25 between each. A list you scan needs the title to win on size;
-     everything below it separates by weight and colour instead of by another half-pixel. */
-  --t-xs:11px;    /* mono meta — chips, pills, the time gutter, footer */
-  --t-sm:13.5px;  /* prose — summaries, bodies, inputs */
-  --t-md:17px;    /* entry titles */
-  --t-lg:22px;    /* page title */
-  --t-xl:34px;    /* hero numbers on the home view */
+/* ============================================================================
+   My Day — the day's own light.
 
-  /* Categorical series, validated for CVD and contrast in both modes. Fixed order,
-     never cycled, and assigned per app name so a filter cannot repaint the survivors. */
+   The one image in this app is not decoration: it is the axis. The day-shape
+   chart already runs 00→24 across the x, so the sky behind it is painted with
+   the actual light of those hours — night at both ends, dawn at six, open sky
+   at noon, dusk at seven. The hour bars stand against it as a ridgeline, which
+   is the same figure as the app icon.
+
+   Everything else stays quiet on purpose. This is a surface you read to answer
+   a question, so scanning beats expression everywhere outside that one band.
+   ============================================================================ */
+:root{
+  --bg:#faf9f6; --card:#fffefc; --sunk:#f2f0ea;
+  --ink:#16150f; --mut:#5f5b50; --faint:#96917f; --line:#e6e2d6;
+  --accent:#4f6285; --warn:#a4661d;
+
+  /* The sky, in the order the day happens. Also the icon's palette. */
+  --sky-night:#232a4d; --sky-dawn:#8d7fa6; --sky-amber:#f0a868;
+  --sky-noon:#bcd0e4; --sky-dusk:#e88a5c; --sky-late:#2c2f52;
+  --ridge:#2b2f4f;
+
+  /* Validated categorical set — CVD and contrast checked in both modes. */
   --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
   --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
-  --grid:rgba(0,0,0,.07);
+  --grid:rgba(20,18,10,.07);
+
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+  --num:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+
+  --t-xs:11.5px; --t-sm:14px; --t-md:17.5px; --t-lg:22px; --t-xl:40px;
+  --r:12px;
 }
 @media (prefers-color-scheme:dark){
-  :root{ --bg:#16161a; --card:#1e1e23; --ink:#eceae6; --mut:#9d9a94; --faint:#6d6a65; --line:#2c2c33;
-         --accent:#8fa8cd; --warn:#d5a24f;
-         /* Same eight hues re-stepped for the dark surface, not an automatic flip. */
-         --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
-         --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
-         --grid:rgba(255,255,255,.09); }
+  :root{
+    --bg:#131316; --card:#1b1b1f; --sunk:#202027;
+    --ink:#f0eee9; --mut:#a09c93; --faint:#6f6b64; --line:#2b2b32;
+    --accent:#93a9cd; --warn:#d9a45c;
+    --ridge:#0e1024;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+    --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+    --grid:rgba(255,255,255,.08);
+  }
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
-.wrap{max-width:900px;margin:0 auto;padding:28px 22px 80px}
-header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:20px}
-h1{font-size:var(--t-lg);margin:0;letter-spacing:-.02em;font-weight:600}
-h1 span{color:var(--faint);font-weight:400}
-.bar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
-.pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-family:var(--mono);font-size:var(--t-xs);color:var(--mut)}
-.pill b{color:var(--ink)}
-select,input{font-family:var(--sans);font-size:var(--t-sm);background:var(--card);color:var(--ink);
-  border:1px solid var(--line);border-radius:9px;padding:8px 11px;outline:none}
-select:focus,input:focus{border-color:var(--mut)}
-#q{width:100%;margin-bottom:14px;padding:10px 13px}
-.warn{background:color-mix(in oklab,var(--warn) 8%,var(--card));border:1px solid color-mix(in oklab,var(--warn) 28%,var(--line));
-  color:var(--warn);border-radius:10px;padding:9px 13px;font-family:var(--mono);font-size:var(--t-xs);line-height:1.7;margin-bottom:14px}
-/* Timeline: a rail down the left, one event per note. The dot and connector carry the
-   grouping, so rows need no dividing borders. */
-.e{display:flex;gap:0;position:relative}
-.etime{width:78px;flex:none;text-align:right;padding:14px 14px 0 0;font-family:var(--mono);
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;font-size:var(--t-sm);line-height:1.5}
+.wrap{max-width:960px;margin:0 auto;padding:26px 26px 90px}
+
+/* ── masthead ───────────────────────────────────────────────────────────── */
+.top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+h1{font-size:var(--t-lg);font-weight:650;margin:0;letter-spacing:-.02em}
+h1 em{font-style:normal;color:var(--faint);font-weight:400}
+select,input,button{font-family:inherit;font-size:var(--t-sm);color:var(--ink)}
+select{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:5px 8px}
+.state{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:var(--t-xs);color:var(--mut)}
+.pip{width:7px;height:7px;border-radius:50%;background:var(--s3);box-shadow:0 0 0 3px color-mix(in oklab,var(--s3) 22%,transparent)}
+.pip.off{background:var(--faint);box-shadow:none}
+
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:22px}
+.tab{background:none;border:none;border-bottom:2px solid transparent;color:var(--mut);
+  padding:9px 13px;cursor:pointer;margin-bottom:-1px;border-radius:7px 7px 0 0}
+.tab:hover{color:var(--ink);background:var(--sunk)}
+.tab.on{color:var(--ink);border-bottom-color:var(--ink);font-weight:600}
+
+.warn{background:color-mix(in oklab,var(--warn) 9%,var(--card));
+  border:1px solid color-mix(in oklab,var(--warn) 26%,var(--line));
+  color:var(--warn);border-radius:var(--r);padding:10px 14px;font-size:var(--t-xs);
+  line-height:1.65;margin-bottom:16px}
+.warn code{background:color-mix(in oklab,var(--warn) 14%,transparent);padding:1px 5px;border-radius:4px}
+
+/* ── the sky: the only image, and it is the x-axis ──────────────────────── */
+.sky{position:relative;height:190px;border-radius:var(--r);overflow:hidden;
+  /* 90deg, and every stop is an actual hour: x is time of day, so the sky has to agree
+     with the axis underneath it. 5am 21%, 6:30 27%, noon 50%, 6pm 75%, 8pm 83%. An angled
+     gradient put dawn light an hour off from the 06 label. */
+  background:linear-gradient(90deg,
+    var(--sky-night) 0%,  var(--sky-night) 17%, var(--sky-dawn) 21%,
+    var(--sky-amber) 27%, var(--sky-noon)  50%, var(--sky-noon) 62%,
+    var(--sky-dusk)  75%, var(--sky-late)  83%, var(--sky-late) 100%);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+.sun{position:absolute;width:96px;height:96px;border-radius:50%;
+  background:radial-gradient(circle at 50% 40%, #fffdf2 0%, #ffe9a8 38%, #f9bf6a 72%, #f0a352 100%);
+  filter:drop-shadow(0 0 46px rgba(255,214,142,.85));bottom:52px;transform:translateX(-50%)}
+/* The ridge. Bars are the silhouette, so the chart and the picture are one thing. */
+.ridge{position:absolute;inset:auto 0 0 0;height:100%;display:flex;align-items:flex-end;gap:2px;padding:0 3px}
+.hr{flex:1;display:flex;align-items:flex-end;height:100%;cursor:default}
+.hr i{display:block;width:100%;background:var(--ridge);border-radius:3px 3px 0 0;
+  transform-origin:bottom;animation:rise .7s cubic-bezier(.16,1,.3,1) both}
+.hr:hover i{filter:brightness(1.35)}
+@keyframes rise{from{transform:scaleY(.02)}to{transform:scaleY(1)}}
+@media (prefers-reduced-motion:reduce){ .hr i{animation:none} }
+.axis{display:flex;padding:7px 3px 0;font-family:var(--num);font-size:var(--t-xs);color:var(--faint)}
+.axis span{flex:1;text-align:center}
+
+/* ── the headline reads as a sentence, not a row of tiles ───────────────── */
+.lede{font-size:var(--t-md);line-height:1.62;letter-spacing:-.01em;margin:22px 0 4px;max-width:64ch}
+.lede b{font-weight:650;font-variant-numeric:tabular-nums}
+.lede .big{font-size:var(--t-xl);font-weight:650;letter-spacing:-.03em;line-height:1;
+  display:inline-block;vertical-align:-3px;margin-right:2px}
+.lede .q{color:var(--mut)}
+.span{font-family:var(--num);font-size:var(--t-xs);color:var(--faint);margin-bottom:26px}
+
+h2{font-size:var(--t-sm);font-weight:650;margin:30px 0 11px;letter-spacing:-.005em}
+h2 span{font-weight:400;color:var(--faint)}
+
+/* ── insights: a list with hairlines, not a grid of cards ───────────────── */
+.ins{border-top:1px solid var(--line)}
+.in{display:flex;gap:12px;align-items:baseline;padding:11px 2px;border-bottom:1px solid var(--line)}
+.in .g{width:17px;flex:none;color:var(--mut);font-size:var(--t-sm);line-height:1.4}
+.in p{margin:0;line-height:1.55}
+.in b{font-weight:650;font-variant-numeric:tabular-nums}
+.in.warn2 .g{color:var(--s2)}
+.in.good .g{color:var(--s3)}
+
+/* ── measured rows: app icon, name, bar, value ──────────────────────────── */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:32px}
+@media(max-width:720px){.two{grid-template-columns:1fr;gap:8px}}
+.row{display:flex;align-items:center;gap:9px;padding:6px 0}
+.row img{width:17px;height:17px;border-radius:4px;flex:none;object-fit:contain}
+.row .nm{width:118px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row.wide .nm{width:150px}
+.row .tr{flex:1;height:7px;background:var(--grid);border-radius:4px;overflow:hidden}
+.row .tr i{display:block;height:100%;border-radius:4px}
+.row .vl{width:104px;flex:none;text-align:right;font-family:var(--num);font-size:var(--t-xs);
+  color:var(--mut);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dot{width:9px;height:9px;border-radius:3px;flex:none}
+
+.week{display:flex;align-items:flex-end;gap:7px;height:76px}
+.wd{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.wd i{width:100%;border-radius:4px 4px 0 0;min-height:3px;
+  background:color-mix(in oklab,var(--accent) 58%,transparent);transition:background .12s}
+.wd.today i{background:var(--accent)}
+.wd:hover i{background:color-mix(in oklab,var(--accent) 80%,transparent)}
+.wd span{font-family:var(--num);font-size:var(--t-xs);color:var(--faint)}
+
+/* ── timeline ───────────────────────────────────────────────────────────── */
+#q{width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;
+  padding:10px 13px;outline:none;margin-bottom:8px}
+#q:focus{border-color:var(--mut)}
+.e{display:flex;position:relative}
+.etime{width:76px;flex:none;text-align:right;padding:14px 14px 0 0;font-family:var(--num);
   font-size:var(--t-xs);color:var(--faint);font-variant-numeric:tabular-nums;white-space:nowrap}
 .erail{width:17px;flex:none;position:relative}
 .erail::before{content:"";position:absolute;left:8px;top:0;bottom:0;width:1px;background:var(--line)}
-.e:first-child .erail::before{top:19px}
-.e:last-child .erail::before{bottom:auto;height:19px}
-.edot{position:absolute;left:4px;top:19px;width:9px;height:9px;border-radius:50%;
-  background:var(--card);border:2px solid var(--faint);z-index:1}
-.e.now .edot{border-color:var(--s1);background:var(--s1)}
-.emain{flex:1;min-width:0;padding:13px 0 17px 12px}
-.eti{font-size:var(--t-md);font-weight:600;letter-spacing:-.01em;cursor:pointer;line-height:1.3}
+.e:first-child .erail::before{top:20px}
+.e:last-child .erail::before{bottom:auto;height:20px}
+.edot{position:absolute;left:4px;top:20px;width:9px;height:9px;border-radius:50%;
+  background:var(--bg);border:2px solid var(--line);z-index:1}
+.e.now .edot{border-color:var(--accent);background:var(--accent)}
+.emain{flex:1;min-width:0;padding:13px 0 18px 12px}
+.eti{font-size:var(--t-md);font-weight:600;letter-spacing:-.01em;cursor:pointer;line-height:1.32}
 .eti:hover{color:var(--accent)}
-.esu{font-size:var(--t-sm);color:var(--mut);line-height:1.55;margin-top:4px}
-/* Real app marks. Identity rides on the icon, with the name in the tooltip, so nothing
-   depends on recognising a colour. */
+.esu{color:var(--mut);line-height:1.55;margin-top:4px}
 .eicons{display:flex;align-items:center;gap:6px;margin-top:9px;flex-wrap:wrap}
 .eicons img{width:19px;height:19px;border-radius:4px;object-fit:contain}
-.eicons .site{font-family:var(--mono);font-size:var(--t-xs);color:var(--mut);background:var(--grid);
-  border-radius:5px;padding:2px 6px}
-.ebody{margin-top:10px;padding:11px 13px;background:var(--card);border:1px solid var(--line);
-  border-radius:10px;font-size:var(--t-sm);line-height:1.7;color:var(--mut);white-space:pre-wrap}
+.chip{font-family:var(--num);font-size:var(--t-xs);color:var(--mut);
+  background:var(--sunk);border-radius:5px;padding:2px 7px}
+.ebody{margin-top:10px;padding:11px 13px;background:var(--sunk);border-radius:10px;
+  color:var(--mut);line-height:1.7;white-space:pre-wrap}
 .x{flex:none;align-self:flex-start;margin-top:14px;background:none;border:none;color:var(--faint);
   font-size:var(--t-md);line-height:1;cursor:pointer;padding:2px 5px;opacity:0}
 .e:hover .x{opacity:1}
-.x:hover{color:#c0504d}
-.none{font-family:var(--mono);font-size:var(--t-sm);color:var(--faint);background:var(--card);
-  border:1px dashed var(--line);border-radius:12px;padding:26px;text-align:center;line-height:1.9}
-.tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--line)}
-.tab{font-family:var(--sans);font-size:var(--t-sm);background:none;border:none;border-bottom:2px solid transparent;
-  color:var(--mut);padding:8px 12px;cursor:pointer;margin-bottom:-1px}
-.tab:hover{color:var(--ink)}
-.tab.on{color:var(--ink);border-bottom-color:var(--ink);font-weight:600}
-.row{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:var(--t-sm)}
-.rname{width:170px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rbar{flex:1;height:7px;background:var(--line);border-radius:4px;overflow:hidden}
-.rbar i{display:block;height:100%;border-radius:4px;background:var(--accent)}
-.rval{width:74px;text-align:right;font-family:var(--mono);font-size:var(--t-xs);color:var(--mut);font-variant-numeric:tabular-nums}
-.sub{font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);margin:14px 0 6px;letter-spacing:.04em;text-transform:uppercase}
-.bl{display:flex;gap:14px;padding:9px 0;border-bottom:1px solid var(--line);font-size:var(--t-sm)}
+.x:hover{color:var(--s8)}
+
+/* ── browse / sessions ──────────────────────────────────────────────────── */
+.bl{display:flex;gap:14px;padding:10px 0;border-bottom:1px solid var(--line)}
 .bl:last-child{border-bottom:none}
-.blt{width:92px;flex:none;font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);padding-top:3px;font-variant-numeric:tabular-nums}
+.blt{width:76px;flex:none;font-family:var(--num);font-size:var(--t-xs);color:var(--faint);
+  padding-top:3px;font-variant-numeric:tabular-nums}
 .blm{flex:1;min-width:0}
 .blh{font-weight:600}
 .bli{color:var(--mut);line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* ── Home ── */
-.hero{margin-bottom:22px}
-.hgreet{font-size:var(--t-lg);font-weight:600;letter-spacing:-.02em}
-.hsub{font-size:var(--t-sm);color:var(--mut);margin-top:3px}
-.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0 22px}
-.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
-.tile .k{font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);letter-spacing:.04em;text-transform:uppercase}
-.tile .v{font-size:var(--t-xl);font-weight:600;letter-spacing:-.02em;line-height:1.1;margin-top:5px;font-variant-numeric:tabular-nums}
-.tile .n{font-size:var(--t-xs);color:var(--mut);margin-top:3px;font-family:var(--mono)}
-.sec{font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);letter-spacing:.06em;text-transform:uppercase;margin:24px 0 10px}
-/* Day shape: one column per hour, height = minutes present, fill = the hour's top app. */
-.shape{display:flex;align-items:flex-end;gap:3px;height:88px;padding:10px 12px 0;
-  background:var(--card);border:1px solid var(--line);border-radius:12px}
-.hr{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative;cursor:default}
-.hr i{display:block;border-radius:4px 4px 0 0;min-height:2px;transition:opacity .12s}
-.hr:hover i{opacity:.7}
-.hraxis{display:flex;gap:3px;padding:5px 12px 0;font-family:var(--mono);font-size:var(--t-xs);color:var(--faint)}
-.hraxis span{flex:1;text-align:center}
-.legend{display:flex;flex-wrap:wrap;gap:11px;margin-top:10px;font-family:var(--mono);font-size:var(--t-xs);color:var(--mut)}
-.legend i{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
-.ins{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-.in{display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--line);
-  border-radius:11px;padding:11px 13px;font-size:var(--t-sm);line-height:1.5}
-.in .em{font-size:var(--t-sm);line-height:1.2;flex:none;opacity:.85}
-.in b{font-weight:600}
-.in.warn{border-color:color-mix(in oklab,var(--s2) 40%,var(--line))}
-.in.good{border-color:color-mix(in oklab,var(--s3) 40%,var(--line))}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
-.brow{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:var(--t-sm)}
-.bname{width:132px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.btrack{flex:1;height:8px;background:var(--grid);border-radius:4px;overflow:hidden}
-.btrack i{display:block;height:100%;border-radius:4px}
-.bval{width:76px;text-align:right;font-family:var(--mono);font-size:var(--t-xs);color:var(--mut);font-variant-numeric:tabular-nums}
-.week{display:flex;align-items:flex-end;gap:6px;height:56px}
-.wd{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end}
-.wd i{width:100%;border-radius:4px 4px 0 0;background:var(--accent);min-height:2px;opacity:.85}
-.wd.today i{background:var(--s1);opacity:1}
-.wd span{font-family:var(--mono);font-size:var(--t-xs);color:var(--faint)}
-/* Friction: findings, not charts. Each is a claim with its evidence attached. */
-.fhead{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:18px}
-.fhead .v{font-size:var(--t-xl);font-weight:600;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
-.fhead .n{font-size:var(--t-sm);color:var(--mut);margin-top:4px}
-.fhead .c{font-size:var(--t-xs);color:var(--faint);margin-top:7px;font-family:var(--mono)}
-.fg{font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);letter-spacing:.06em;
-  text-transform:uppercase;margin:20px 0 9px}
-.f{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:13px 15px;margin-bottom:9px}
-.f .ft{font-size:var(--t-sm);font-weight:600}
-.f .fd{font-size:var(--t-sm);color:var(--mut);margin-top:3px;line-height:1.5}
-.f .ff{font-size:var(--t-sm);color:var(--ink);margin-top:8px;padding-top:8px;border-top:1px solid var(--line);line-height:1.55}
-.f .ff::before{content:"Fix  ";font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);letter-spacing:.06em}
-.f .fe{font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);margin-top:6px}
-footer{margin-top:26px;font-family:var(--mono);font-size:var(--t-xs);color:var(--faint);line-height:1.8}
+
+/* ── friction ───────────────────────────────────────────────────────────── */
+.fh{margin-bottom:8px}
+.fh .v{font-size:var(--t-xl);font-weight:650;letter-spacing:-.03em;line-height:1.05;
+  font-variant-numeric:tabular-nums}
+.fh .n{color:var(--mut);margin-top:6px}
+.fh .c{font-family:var(--num);font-size:var(--t-xs);color:var(--faint);margin-top:8px}
+.f{padding:13px 0;border-bottom:1px solid var(--line)}
+.f .ft{font-weight:650}
+.f .fd{color:var(--mut);margin-top:3px}
+.f .ff{margin-top:7px;line-height:1.55}
+.f .ff em{font-style:normal;font-family:var(--num);font-size:var(--t-xs);color:var(--faint);
+  margin-right:7px;letter-spacing:.05em}
+
+.none{color:var(--faint);background:var(--card);border:1px dashed var(--line);
+  border-radius:var(--r);padding:30px;text-align:center;line-height:1.9}
+footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);
+  font-size:var(--t-xs);color:var(--faint);line-height:1.8}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <h1>myday <span>— what you did</span></h1>
-    <select id="date"></select>
-  </header>
-  <div class="bar" id="bar"></div>
-  <div id="warn"></div>
-  <div class="tabs" id="tabs">
-    <button class="tab on" data-v="home">Home</button>
-    <button class="tab" data-v="memories">Memories</button>
+  <div class="top">
+    <h1>My Day <em>— what you did</em></h1>
+    <select id="date" aria-label="Choose a day"></select>
+    <span class="state" id="state"></span>
+  </div>
+
+  <div class="tabs" id="tabs" role="tablist">
+    <button class="tab on" data-v="home">Today</button>
+    <button class="tab" data-v="memories">Timeline</button>
     <button class="tab" data-v="apps">Apps</button>
-    <button class="tab" data-v="browse">Browse</button>
-    <button class="tab" data-v="sessions">Sessions</button>
+    <button class="tab" data-v="browse">Reading</button>
+    <button class="tab" data-v="sessions">Building</button>
     <button class="tab" data-v="friction">Friction</button>
   </div>
+
+  <div id="warn"></div>
   <input id="q" type="search" placeholder="Filter this day — an app, a page, a word…" autocomplete="off">
   <div id="list"></div>
   <div id="pane"></div>
+
   <footer>
-    Everything here is a plain Markdown file under <code>~/.myday/memories/</code>.<br>
+    Every note here is a plain Markdown file in <code>~/.myday/memories/</code>.<br>
     Delete one with the ×, or delete the file. Nothing is uploaded.
   </footer>
 </div>
 <script>
-const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-const md  = s => esc(s).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>');
-let D = null, open = new Set();
+const esc  = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const md   = s => esc(s).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>');
+const bold = s => esc(s).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+const durm = s => s>=3600 ? `${Math.floor(s/3600)}h ${String(Math.round(s%3600/60)).padStart(2,'0')}m`
+                          : `${Math.round(s/60)}m`;
+let D = null, view = 'home', open = new Set();
+
+/* Colour follows the app, not its rank: slots go by sorted name across the day's set, so
+   re-sorting or filtering never repaints a series. Eight fixed hues, never cycled. */
+const SERIES = ['--s1','--s2','--s3','--s4','--s5','--s6','--s7','--s8'];
+let _slots = new Map();
+function assignHues(names){
+  _slots = new Map();
+  [...new Set(names)].sort().forEach((n,i)=> _slots.set(n, i<SERIES.length ? `var(${SERIES[i]})` : 'var(--faint)'));
+}
+const hue = n => _slots.get(n) || 'var(--faint)';
+const appIcon = (a,sz) => `<img src="/api/icon/${encodeURIComponent(a)}" alt="" title="${esc(a)}" loading="lazy"
+  ${sz?`style="width:${sz}px;height:${sz}px"`:''} onerror="this.style.display='none'">`;
 
 async function load(date){
-  const r = await fetch('/api/day' + (date ? '?date='+date : ''));
-  D = await r.json();
+  D = await (await fetch('/api/day' + (date ? '?date='+date : ''))).json();
 
   const sel = document.getElementById('date');
-  if (sel.options.length !== (D.dates||[]).length) {
-    sel.innerHTML = (D.dates||[D.date]).map(d=>`<option${d===D.date?' selected':''}>${d}</option>`).join('');
-  }
+  if (sel.options.length !== (D.dates||[]).length)
+    sel.innerHTML = (D.dates||[D.date]).map(d=>`<option>${d}</option>`).join('');
   sel.value = D.date;
 
-  const active = Math.round(D.entries.reduce((a,e)=>a+(e.activeSec||0),0)/60);
-  document.getElementById('bar').innerHTML =
-    `<span class="pill"><b>${D.entries.length}</b> memories</span>`+
-    `<span class="pill"><b>${active}m</b> active</span>`+
-    `<span class="pill"><b>${D.capture.samples}</b> samples</span>`+
-    `<span class="pill">${D.paused?'paused':'recording'}</span>`+
-    `<span class="pill">${esc(D.summarizer)}</span>`;
+  document.getElementById('state').innerHTML =
+    `<span class="pip ${D.paused?'off':''}"></span>${D.paused?'paused':'recording'} · ${D.entries.length} notes`;
 
   const w = [];
   if (D.capture.samples > 40 && D.capture.titlePct === 0)
-    w.push('Window titles are not being captured — app names and page titles only. <code>myday build-helper</code> then grant that one binary Accessibility.');
+    w.push('Window titles are off, so notes name the app but not the document. Menu bar icon → <b>Window titles off — click to allow</b>.');
   if (D.summarizer === 'local' && D.entries.length)
-    w.push('Summaries are local digests. <code>myday config summarizer claude-cli</code> writes them with a model instead.');
+    w.push('Notes are plain digests right now. <code>myday config summarizer claude-cli</code> writes them as sentences.');
   document.getElementById('warn').innerHTML = w.map(x=>`<div class="warn">${x}</div>`).join('');
 
   renderPane();
 }
 
+/* ── Timeline ───────────────────────────────────────────────────────────── */
 function render(){
   const q = document.getElementById('q').value.trim().toLowerCase();
   const list = D.entries.filter(e => !q ||
     `${e.title} ${e.summary} ${e.body} ${e.apps.join(' ')} ${e.sites.join(' ')} ${e.project||''}`.toLowerCase().includes(q));
   const el = document.getElementById('list');
   if (!list.length){
-    el.innerHTML = `<div class="none">${q ? 'Nothing on this day matches \u201c'+esc(q)+'\u201d.'
-      : 'No notes for this day.<br>My Day writes one every ten minutes while you work.'}</div>`;
+    el.innerHTML = `<div class="none">${q ? 'Nothing on this day matches “'+esc(q)+'”.'
+      : 'No notes yet for this day.<br>My Day writes one every ten minutes while you work.'}</div>`;
     return;
   }
-  const t12 = hhmm => {
-    const [h,m] = hhmm.split(':').map(Number);
-    return `${h%12===0?12:h%12}:${String(m).padStart(2,'0')} ${h<12?'AM':'PM'}`;
-  };
-  const now = new Date();
-  const nowSlot = now.getHours()*60 + Math.floor(now.getMinutes()/10)*10;
+  const t12 = t => { const [h,m]=t.split(':').map(Number);
+    return `${h%12===0?12:h%12}:${String(m).padStart(2,'0')} ${h<12?'AM':'PM'}`; };
+  const now = new Date(), nowSlot = now.getHours()*60 + Math.floor(now.getMinutes()/10)*10;
 
   el.innerHTML = list.map(e=>{
-    const k = e.date+e.slot, o = open.has(k);
-    const [hh,mm] = e.start.split(':').map(Number);
-    const live = e.date === D.date && (hh*60+mm) === nowSlot;
-    // Icons for apps. Sites and project stay as text: a favicon would need a network
-    // request, and this page never makes one.
-    const icons = e.apps.slice(0,5).map(a =>
-      `<img src="/api/icon/${encodeURIComponent(a)}" alt="${esc(a)}" title="${esc(a)}" loading="lazy"
-            onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'site',textContent:${JSON.stringify(a)}}))">`).join('');
-    const sites = e.sites.slice(0,3).map(x=>`<span class="site">${esc(x)}</span>`).join('');
-    const proj  = e.project ? `<span class="site">${esc(e.project)}</span>` : '';
+    const k=e.date+e.slot, o=open.has(k), [hh,mm]=e.start.split(':').map(Number);
+    const live = e.date===D.date && (hh*60+mm)===nowSlot;
+    const marks = e.apps.slice(0,5).map(a=>appIcon(a)).join('')
+      + e.sites.slice(0,3).map(x=>`<span class="chip">${esc(x)}</span>`).join('')
+      + (e.project?`<span class="chip">${esc(e.project)}</span>`:'');
     return `<div class="e ${live?'now':''}">
       <div class="etime">${t12(e.start)}</div>
       <div class="erail"><span class="edot"></span></div>
       <div class="emain">
         <div class="eti" data-k="${k}">${esc(e.title)}</div>
         ${e.summary?`<div class="esu">${esc(e.summary)}</div>`:''}
-        ${(icons||sites||proj)?`<div class="eicons">${icons}${sites}${proj}</div>`:''}
+        ${marks?`<div class="eicons">${marks}</div>`:''}
         ${o?`<div class="ebody">${md(e.body)}</div>`:''}
       </div>
-      <button class="x" data-d="${e.date}" data-s="${e.slot}" title="forget this">×</button>
+      <button class="x" data-d="${e.date}" data-s="${e.slot}" title="Forget this note" aria-label="Forget this note">×</button>
     </div>`;
   }).join('');
 
@@ -256,143 +310,108 @@ function render(){
   });
 }
 
-let view = 'home';
-const rows = items => items.map(i =>
-  `<div class="row"><span class="rname" title="${esc(i.name)}">${esc(i.name)}</span>`+
-  `<span class="rbar"><i style="width:${i.pct}%"></i></span><span class="rval">${esc(i.val)}</span></div>`).join('');
-
-// Colour follows the app, not its rank. Slots are handed out by sorted name across the
-// day's set, so re-sorting the bars or filtering the list never repaints a series, and no
-// two visible apps can land on the same hue. Hashing the name was the first attempt and it
-// collided immediately — Teams and Terminal came out the same pink.
-// Eight fixed hues, never cycled: a ninth app gets neutral rather than an invented colour.
-const SERIES = ['--s1','--s2','--s3','--s4','--s5','--s6','--s7','--s8'];
-let _slots = new Map();
-function assignHues(names){
-  _slots = new Map();
-  [...new Set(names)].sort().forEach((n, i) => {
-    _slots.set(n, i < SERIES.length ? `var(${SERIES[i]})` : 'var(--faint)');
-  });
-}
-const hue = (name) => _slots.get(name) || 'var(--faint)';
-const durm = s => s>=3600 ? `${Math.floor(s/3600)}h ${String(Math.round(s%3600/60)).padStart(2,'0')}m` : `${Math.round(s/60)}m`;
-const bold = s => esc(s).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
-const ICON = {target:'◎',shuffle:'⇄',clock:'◷',sun:'☀',chart:'▤',code:'⌘',globe:'◍',span:'⟷'};
+const GLYPH = {target:'◎',shuffle:'⇄',clock:'◷',sun:'☀',chart:'▤',code:'⌘',globe:'◍',span:'⟷'};
+const bar = (name,pct,val,color,icon) =>
+  `<div class="row${icon?'':' wide'}">${icon?appIcon(name):`<span class="dot" style="background:${color}"></span>`}`+
+  `<span class="nm" title="${esc(name)}">${esc(name)}</span>`+
+  `<span class="tr"><i style="width:${pct}%;background:${color}"></i></span>`+
+  `<span class="vl">${esc(val)}</span></div>`;
 
 async function renderPane(){
-  const list = document.getElementById('list'), pane = document.getElementById('pane'), q = document.getElementById('q');
+  const list=document.getElementById('list'), pane=document.getElementById('pane'), q=document.getElementById('q');
   list.style.display = view==='memories' ? '' : 'none';
-  q.style.display = view==='memories' ? '' : 'none';
+  q.style.display    = view==='memories' ? '' : 'none';
   pane.style.display = view==='memories' ? 'none' : '';
   if (view==='memories') return render();
 
-  pane.innerHTML = '<div class="none">loading…</div>';
+  pane.innerHTML = '<div class="none">Reading your day…</div>';
   const d = await (await fetch(`/api/${view}?date=${D.date}`)).json();
 
   if (view==='home'){
     if (!d.stats || !d.stats.activeSec) return pane.innerHTML =
-      '<div class="none">Nothing recorded for this day yet.<br>My Day writes its first note within ten minutes of you working.</div>';
-    const st = d.stats;
-    // Fix the colour assignment once for the whole view, from every app the day contains.
-    assignHues([...(d.apps||[]).map(a=>a.app), ...d.hours.map(x=>x.top && x.top[0]).filter(Boolean)]);
-    const hh = new Date().getHours();
-    const greet = hh<12 ? 'Good morning' : hh<18 ? 'Good afternoon' : 'Good evening';
-    const maxHour = Math.max(...d.hours.map(x=>x.secs), 1);
-    const apps = d.apps || [];
-    const maxApp = Math.max(...apps.map(a=>a.secs), 1);
-    const maxWeek = Math.max(...(d.weekDays||[]).map(w=>w.secs), 1);
-    const dayName = iso => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(iso+'T12:00:00').getDay()];
+      '<div class="none">Nothing recorded for this day yet.<br>The first note lands within ten minutes of you working.</div>';
+    const st=d.stats, apps=d.apps||[];
+    assignHues([...apps.map(a=>a.app), ...d.hours.map(x=>x.top&&x.top[0]).filter(Boolean)]);
+    const maxHour=Math.max(...d.hours.map(x=>x.secs),1), maxApp=Math.max(...apps.map(a=>a.secs),1);
+    const maxWeek=Math.max(...(d.weekDays||[]).map(w=>w.secs),1);
+    const dayName=i=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(i+'T12:00:00').getDay()];
+
+    // The sun sits at the middle of the hours actually worked, so the picture is this day's.
+    const worked = d.hours.filter(h=>h.secs>0);
+    const mid = worked.length ? (worked[0].h + worked[worked.length-1].h)/2 : 12;
+    const vsAvg = st.avgActiveSec ? Math.round((st.activeSec/st.avgActiveSec-1)*100) : null;
 
     pane.innerHTML =
-      `<div class="hero"><div class="hgreet">${greet}</div>`+
-      `<div class="hsub">${st.first? st.first.slice(11,16):'—'} to ${st.last? st.last.slice(11,16):'—'} · `+
-      `${d.insights.length} thing${d.insights.length===1?'':'s'} worth noticing</div></div>`+
+      `<div class="sky">
+         <span class="sun" style="left:${(mid/24*100).toFixed(1)}%"></span>
+         <div class="ridge">`+
+           d.hours.map((x,i)=>{
+             const pct=Math.round(x.secs/maxHour*76);
+             const app=x.top?x.top[0]:null;
+             const t=x.secs?`${String(x.h).padStart(2,'0')}:00 — ${Math.round(x.secs/60)}m${app?' · '+app:''}`
+                            :`${String(x.h).padStart(2,'0')}:00 — away`;
+             return `<span class="hr" title="${esc(t)}"><i style="height:${Math.max(pct,x.secs?4:0)}%;animation-delay:${i*14}ms"></i></span>`;
+           }).join('')+
+         `</div>
+       </div>
+       <div class="axis">`+ d.hours.map(x=> x.h%6===0?`<span>${String(x.h).padStart(2,'0')}</span>`:'<span></span>').join('') +`</div>
 
-      `<div class="tiles">`+
-        tile('at the machine', durm(st.activeSec), st.avgActiveSec? `usual ${durm(st.avgActiveSec)}`:'')+
-        tile('longest stretch', durm(st.longestSec), st.longestApp||'')+
-        tile('app switches', String(st.switches), `${st.switchesPerHour}/hr`)+
-        tile('notes written', String(st.notes), st.notes? 'searchable':'none yet')+
-      `</div>`+
+       <p class="lede"><span class="big">${durm(st.activeSec)}</span> at the machine`+
+         (vsAvg!==null ? `, <b>${vsAvg>=0?'+':''}${vsAvg}%</b> against your usual ${durm(st.avgActiveSec)}` : '')+
+         `. Longest unbroken stretch <b>${durm(st.longestSec)}</b>`+
+         (st.longestApp?` in ${esc(st.longestApp)}`:'')+
+         `, across <b>${st.switches}</b> app switches.</p>
+       <div class="span">${st.first?st.first.slice(11,16):'—'} → ${st.last?st.last.slice(11,16):'—'} · ${d.hours.filter(h=>h.secs>0).length} hours with activity</div>`+
 
-      `<div class="sec">the shape of your day</div>`+
-      `<div class="shape">`+ d.hours.map(x=>{
-        const pct = Math.round(x.secs/maxHour*100);
-        const app = x.top? x.top[0] : null;
-        const t = x.secs? `${String(x.h).padStart(2,'0')}:00 — ${Math.round(x.secs/60)}m${app?' · '+app:''}` : `${String(x.h).padStart(2,'0')}:00 — away`;
-        return `<span class="hr" title="${esc(t)}"><i style="height:${pct}%;background:${app?hue(app):'var(--grid)'}"></i></span>`;
-      }).join('') + `</div>`+
-      `<div class="hraxis">`+ d.hours.map(x=> x.h%6===0? `<span>${String(x.h).padStart(2,'0')}</span>` : '<span></span>').join('') +`</div>`+
-      `<div class="legend">`+ apps.slice(0,6).map(a=>`<span><i style="background:${hue(a.app)}"></i>${esc(a.app)}</span>`).join('') +`</div>`+
+      (d.insights.length ? `<h2>What stands out</h2><div class="ins">`+
+        d.insights.map(i=>`<div class="in ${i.kind==='warn'?'warn2':i.kind==='good'?'good':''}">`+
+          `<span class="g">${GLYPH[i.icon]||'•'}</span><p>${bold(i.text)}</p></div>`).join('')+`</div>` : '')+
 
-      (d.insights.length? `<div class="sec">what stands out</div><div class="ins">`+
-        d.insights.map(i=>`<div class="in ${i.kind==='warn'?'warn':i.kind==='good'?'good':''}">`+
-          `<span class="em">${ICON[i.icon]||'•'}</span><span>${bold(i.text)}</span></div>`).join('')+`</div>` : '')+
+      `<div class="two">
+         <div><h2>Where the time went</h2>`+
+           apps.map(a=>bar(a.app, Math.round(a.secs/maxApp*100), `${durm(a.secs)} · ${a.pct}%`, hue(a.app), true)).join('')+
+         `</div>
+         <div><h2>What you read</h2>`+
+           ((d.sites||[]).length
+             ? d.sites.map(h=>bar(h.host, Math.round(h.visits/Math.max(...d.sites.map(x=>x.visits),1)*100),
+                                  `${h.visits}`, 'var(--accent)', false)).join('')
+             : '<div class="bli">No browsing recorded.</div>')+
+           ((d.projects||[]).length ? `<h2>What you built</h2>`+
+             d.projects.map(p=>bar(p.project, Math.round(p.mins/Math.max(...d.projects.map(x=>x.mins),1)*100),
+                                   `${p.mins}m`, 'var(--s7)', false)).join('') : '')+
+         `</div>
+       </div>
 
-      `<div class="two">`+
-        `<div><div class="sec">where the time went</div>`+
-          apps.map(a=>`<div class="brow"><span class="bname" title="${esc(a.app)}">${esc(a.app)}</span>`+
-            `<span class="btrack"><i style="width:${Math.round(a.secs/maxApp*100)}%;background:${hue(a.app)}"></i></span>`+
-            `<span class="bval">${durm(a.secs)} · ${a.pct}%</span></div>`).join('')+
-        `</div>`+
-        `<div><div class="sec">what you read</div>`+
-          ((d.sites||[]).length? d.sites.map(h=>`<div class="brow"><span class="bname" title="${esc(h.host)}">${esc(h.host)}</span>`+
-            `<span class="btrack"><i style="width:${Math.round(h.visits/Math.max(...d.sites.map(x=>x.visits),1)*100)}%;background:var(--accent)"></i></span>`+
-            `<span class="bval">${h.visits}</span></div>`).join('') : '<div class="bval" style="text-align:left">no browsing recorded</div>')+
-          ((d.projects||[]).length? `<div class="sec">what you built</div>`+
-            d.projects.map(p=>`<div class="brow"><span class="bname">${esc(p.project)}</span>`+
-              `<span class="btrack"><i style="width:${Math.round(p.mins/Math.max(...d.projects.map(x=>x.mins),1)*100)}%;background:var(--s7)"></i></span>`+
-              `<span class="bval">${p.mins}m</span></div>`).join('') : '')+
-        `</div>`+
-      `</div>`+
-
-      `<div class="sec">last seven days</div><div class="week">`+
-        (d.weekDays||[]).map(w=>`<div class="wd ${w.date===d.date?'today':''}" title="${w.date} · ${durm(w.secs)}">`+
-          `<i style="height:${Math.round(w.secs/maxWeek*100)}%"></i><span>${dayName(w.date)}</span></div>`).join('')+
-      `</div>`;
+       <h2>Last seven days</h2><div class="week">`+
+         (d.weekDays||[]).map(w=>`<div class="wd ${w.date===d.date?'today':''}" title="${w.date} · ${durm(w.secs)}">`+
+           `<i style="height:${Math.round(w.secs/maxWeek*100)}%"></i><span>${dayName(w.date)}</span></div>`).join('')+
+       `</div>`;
   }
 
   if (view==='apps'){
     if (!d.apps || !d.apps.length) return pane.innerHTML =
-      '<div class="none">No samples for this day.<br>The daemon records these — run <code>myday status</code>.</div>';
+      '<div class="none">No samples for this day.<br>Check the menu bar — recording may be paused.</div>';
+    assignHues(d.apps.map(a=>a.app));
+    const maxApp=Math.max(...d.apps.map(a=>a.secs),1);
+    const maxWk=Math.max(...d.weekApps.map(a=>a.secs),1);
     pane.innerHTML =
-      `<div class="bar"><span class="pill"><b>${durm(d.active)}</b> at the machine</span>`+
-      `<span class="pill"><b>${d.apps.length}</b> apps</span>`+
-      `<span class="pill"><b>${d.switches}</b> switches · ${d.switchesPerHour}/hr</span>`+
-      (d.longest?`<span class="pill">longest <b>${durm(d.longest.secs)}</b> ${esc(d.longest.app)}</span>`:'')+`</div>`+
-      `<div class="sub">today</div>`+
-      rows(d.apps.map(a=>({name:a.app, pct:a.pct, val:`${durm(a.secs)} · ${a.pct}%`})))+
-      `<div class="sub">last 7 days</div>`+
-      rows(d.weekApps.map(a=>({name:a.app, pct:Math.round(a.secs/Math.max(...d.weekApps.map(x=>x.secs),1)*100), val:durm(a.secs)})));
+      `<p class="lede"><span class="big">${durm(d.active)}</span> across <b>${d.apps.length}</b> apps, `+
+      `with <b>${d.switches}</b> switches — about <b>${d.switchesPerHour}</b> an hour.`+
+      (d.longest?` The longest you stayed put was <b>${durm(d.longest.secs)}</b> in ${esc(d.longest.app)}.`:'')+`</p>
+       <h2>Today</h2>`+
+      d.apps.map(a=>bar(a.app, a.pct, `${durm(a.secs)} · ${a.pct}%`, hue(a.app), true)).join('')+
+      `<h2>Last seven days</h2>`+
+      d.weekApps.map(a=>bar(a.app, Math.round(a.secs/maxWk*100), durm(a.secs), hue(a.app), true)).join('');
   }
 
   if (view==='browse'){
-    if (!d.blocks || !d.blocks.length) return pane.innerHTML = '<div class="none">No browsing recorded for this day.</div>';
+    if (!d.blocks || !d.blocks.length) return pane.innerHTML =
+      '<div class="none">No browsing recorded for this day.</div>';
     pane.innerHTML =
-      `<div class="bar"><span class="pill"><b>${d.visits}</b> visits</span><span class="pill"><b>${d.hosts.length}</b> sites</span></div>`+
+      `<p class="lede"><span class="big">${d.visits}</span> pages across <b>${d.hosts.length}</b> sites.</p>`+
       d.blocks.map(b=>`<div class="bl"><div class="blt">${b.start}${b.end?'<br>'+b.end:''}</div><div class="blm">`+
         `<div class="blh">${esc(b.host)}${b.count>1?` <span style="color:var(--faint);font-weight:400">×${b.count}</span>`:''}</div>`+
         b.titles.slice(0,3).map(t=>`<div class="bli">${esc(t)}</div>`).join('')+`</div></div>`).join('');
-  }
-
-  if (view==='friction'){
-    if (!d.findings || !d.findings.length) return pane.innerHTML =
-      `<div class="none">Nothing recurring found across ${d.days||21} days.<br>Friction needs a couple of weeks of history before patterns show.</div>`;
-    const LABEL = {auth:'Signing in again', search:'Searching for the same thing',
-                   pingpong:'Getting pulled away and back', boomerang:'Navigating there again'};
-    const order = ['auth','search','pingpong','boomerang'];
-    pane.innerHTML =
-      `<div class="fhead"><div class="v">~${d.estMinPerWeek} min/week</div>`+
-      `<div class="n">${d.findings.length} recurring frictions across ${d.days} days and ${d.visits.toLocaleString()} page visits.</div>`+
-      `<div class="c">${esc(d.note||'')}</div></div>`+
-      order.filter(k=>d.findings.some(f=>f.kind===k)).map(k=>
-        `<div class="fg">${esc(LABEL[k]||k)}</div>`+
-        d.findings.filter(f=>f.kind===k).map(f=>
-          `<div class="f"><div class="ft">${esc(f.title)}</div>`+
-          `<div class="fd">${esc(f.detail)}</div>`+
-          `<div class="ff">${esc(f.fix)}</div>`+
-          (f.evidence?`<div class="fe">${esc(f.evidence)}</div>`:'')+`</div>`).join('')
-      ).join('');
   }
 
   if (view==='sessions'){
@@ -400,16 +419,31 @@ async function renderPane(){
       '<div class="none">No Claude Code transcripts found.<br>This view is for Claude Code users.</div>';
     if (!d.sessions.length) return pane.innerHTML = '<div class="none">No sessions on this day.</div>';
     pane.innerHTML =
-      `<div class="bar"><span class="pill"><b>${d.sessions.length}</b> sessions</span>`+
-      `<span class="pill"><b>${durm(d.totalMins*60)}</b> elapsed</span>`+
-      d.projects.slice(0,4).map(p=>`<span class="pill">${esc(p.project)} <b>${p.mins}m</b></span>`).join('')+`</div>`+
+      `<p class="lede"><span class="big">${d.sessions.length}</span> sessions, <b>${durm(d.totalMins*60)}</b> elapsed`+
+      (d.projects.length?` — mostly ${esc(d.projects[0].project)}`:'')+`.</p>`+
       d.sessions.map(s=>`<div class="bl"><div class="blt">${s.start}<br>${s.end}</div><div class="blm">`+
         `<div class="blh">${esc(s.project)} <span style="color:var(--faint);font-weight:400">${s.mins}m · ${s.turns} turns</span></div>`+
         `<div class="bli">${esc(s.prompt)}</div></div></div>`).join('');
   }
-}
 
-function tile(k,v,n){ return `<div class="tile"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div><div class="n">${esc(n)}</div></div>`; }
+  if (view==='friction'){
+    if (!d.findings || !d.findings.length) return pane.innerHTML =
+      `<div class="none">Nothing recurring across ${d.days||21} days.<br>Friction needs a couple of weeks before patterns show.</div>`;
+    const LABEL={auth:'Signing in again', search:'Searching for the same thing',
+                 pingpong:'Pulled away and straight back', boomerang:'Navigating there again'};
+    pane.innerHTML =
+      `<div class="fh"><div class="v">~${d.estMinPerWeek} min a week</div>`+
+      `<div class="n">${d.findings.length} recurring frictions across ${d.days} days and ${d.visits.toLocaleString()} page visits.</div>`+
+      `<div class="c">${esc(d.note||'')}</div></div>`+
+      ['auth','search','pingpong','boomerang'].filter(k=>d.findings.some(f=>f.kind===k)).map(k=>
+        `<h2>${esc(LABEL[k]||k)}</h2>`+
+        d.findings.filter(f=>f.kind===k).map(f=>
+          `<div class="f"><div class="ft">${esc(f.title)}</div>`+
+          `<div class="fd">${esc(f.detail)}</div>`+
+          `<div class="ff"><em>FIX</em>${esc(f.fix)}</div></div>`).join('')
+      ).join('');
+  }
+}
 
 document.getElementById('tabs').onclick = e => {
   const b = e.target.closest('.tab'); if (!b) return;
@@ -417,7 +451,7 @@ document.getElementById('tabs').onclick = e => {
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t===b));
   renderPane();
 };
-document.getElementById('q').oninput = () => render();
+document.getElementById('q').oninput  = () => render();
 document.getElementById('date').onchange = e => load(e.target.value);
 load();
 </script>
