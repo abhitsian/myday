@@ -373,7 +373,7 @@ async function cmdBackfill() {
 
 function cmdThreads() {
   if (!requireInit()) return;
-  const r = TH.build(Number(val('days', 21)));
+  const r = TH.build(Number(val('days', 7)));
   if (!r.threads.length) return say(`No recurring work found in ${r.notesConsidered} notes. Threads need a few days of history.`);
   const STATE = { today:'today', active:'yesterday', warm:'a few days ago', quiet:'' };
   say(`${r.threads.length} threads from ${r.notesConsidered} notes · ${r.unclustered} one-offs\n`);
@@ -558,7 +558,7 @@ function cmdView() {
     }
     if (u.pathname === '/api/sources' && req.method === 'POST') { /* handled below */ }
     if (u.pathname === '/api/threads') {
-      let out; try { out = TH.build(Number(u.searchParams.get('days')) || 21); }
+      let out; try { out = TH.build(Number(u.searchParams.get('days')) || 7); }
       catch (e) { out = { error: e.message, threads: [] }; }
       res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify(out));
     }
