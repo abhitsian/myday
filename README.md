@@ -1,172 +1,218 @@
-# myday
+<div align="center">
+<img src="docs/screens/icon.png" width="120" alt="My Day">
 
-A private, local memory of what you did on your Mac. Every ten minutes it writes one small
-Markdown file describing what you were working on. You can search those files, ask questions
-of them, and let your AI coding agent read them over MCP.
+# My Day
 
-No screenshots. No keystrokes. No account. Nothing leaves the machine unless you turn that on.
+**A private record of what you worked on, kept on your Mac.**
 
-```
-myday show
+It writes a short note every ten minutes. Weeks later you can ask it what you were doing —
+and so can your AI assistant.
 
-  09:10  Tracing the webhook retry loop
-  09:20      Read Stripe's idempotency docs, then edited retry.ts
-             Code, Google Chrome · stripe.com, github.com · backend-api
+</div>
 
-  09:20  Standup, then back into retry handling
-  09:30      Zoom call, then straight back to retry.ts and the failing test
-             zoom.us, Code, Terminal · backend-api
-```
+<img src="docs/screens/today.jpg" alt="The Today view: an hour-by-hour shape of the day, and what stood out">
 
-## Why
+---
 
-Your agent starts every session knowing nothing about your week. You re-explain what you were
-doing, which file you were in, what you already tried. Meanwhile the machine knew all of it.
+## The problem
 
-myday writes that down in a form both you and an agent can read.
+You finish a week and cannot account for it. Your manager asks what you shipped. You open a
+half-finished document and spend ten minutes reconstructing why you opened it. You read
+something useful in March and cannot find it in August.
 
-```
-$ myday ask "what was I debugging yesterday"
+Meanwhile your AI assistant starts every conversation knowing nothing. You re-explain the
+project, the file, the thing you already tried, every single time.
 
-The retry loop in retry.ts — specifically idempotency-key reuse on retried
-webhook deliveries (2026-08-16 09:10). You read Stripe's idempotency docs
-(09:20), then spent the afternoon on the failing test in retry.test.ts
-(14:00–15:30). You left off with the test still red.
-```
+Your computer knew all of it and wrote none of it down.
 
-## Install
+## What My Day does
 
-```sh
-npm install -g myday
-myday init      # explains exactly what gets captured, then asks
-myday start     # begins recording
-```
-
-macOS only. Node 18+.
-
-## It works before you grant it anything
-
-Three tiers. Each one is useful, and you opt into the next only if you want it.
-
-| Tier | Needs | You get |
-|---|---|---|
-| 1 | nothing at all | Which app was in front, and for how long |
-| 2 | nothing at all | Page titles and URLs, read from your browser's own history DB |
-| 3 | Accessibility, for one binary | Window titles — the document, the chat, the folder |
-
-Most tools in this category demand accessibility before they show you anything, so you have
-to trust them on a promise. Here you can run tiers 1 and 2 for a week and read the output
-first.
-
-For tier 3:
-
-```sh
-myday build-helper
-# then grant Accessibility to just the printed binary path
-```
-
-The helper is [60 lines of Swift](helper/frontwindow.swift) that reads two attributes and
-prints them. The alternative most tools use is granting `/usr/bin/osascript` accessibility,
-which hands it to every AppleScript on your machine, including keystroke and click synthesis.
-
-## Use it from your agent
-
-```jsonc
-// ~/.claude.json  →  mcpServers
-"myday": { "command": "myday-mcp" }
-```
-
-Four tools: `history_search`, `history_window`, `history_resume`, `history_time_by`.
-
-Then, in any session: *"pick up where I left off"*, *"when did I last touch the auth code"*,
-*"where did my week actually go"*.
-
-## Summaries
-
-By default summaries are written locally with no model and no network — plain digests of what
-was captured. To get real prose:
-
-```sh
-myday config summarizer claude-cli   # uses your Claude Code CLI
-myday config summarizer api          # uses ANTHROPIC_API_KEY
-```
-
-That is roughly 40–55 short calls a day. Every one is recorded in `~/.myday/egress.log`,
-so "what left my machine, and when" is a question with a file-backed answer.
-
-## Privacy
-
-Exclusions apply **before anything is written to disk**, so an excluded app is never recorded
-rather than filtered out later.
-
-```sh
-myday config excludeApps "1Password, Keychain Access, Signal"
-myday config excludeSites "*bank*, *health*, therapist.example.com"
-myday config excludeTitlePatterns "Chat | *"   # blank the title, keep the time
-myday config paused true                        # stop recording, keep what exists
-```
-
-Read [THREAT-MODEL.md](THREAT-MODEL.md) before deciding to run this. The short version: these
-files describe your day in detail, they are plaintext, and anyone who can run code as you can
-read them.
-
-## Everything is a file
-
-```
-~/.myday/
-  config.json
-  raw/2026-08-17.jsonl          samples, deleted after 14 days
-  memories/2026-08-17/0910.md   one per 10 minutes, kept
-  egress.log                    every byte that left, with a timestamp
-```
-
-A memory:
+Every ten minutes it writes one small Markdown file describing what you were doing:
 
 ```markdown
 ---
 start: 09:10
 end: 09:20
 title: Tracing the webhook retry loop
-summary: Read Stripe idempotency docs, then edited retry.ts.
-apps: Code, Google Chrome
+summary: You read Stripe idempotency docs, then edited retry.ts.
+apps: Visual Studio Code, Google Chrome
 sites: stripe.com, github.com
-project: backend-api
-active: 540
-generator: claude-cli
+project: payments-api
 ---
-
-- Reading Stripe's idempotency-key docs on retried webhook deliveries
-- Editing retry.ts, focused on the reuse path
+- Reading Stripe's idempotency-key docs on retried deliveries
+- Editing retry.ts, focused on the key-reuse path
 ```
 
-Edit them. Delete them. `grep` them. There is no database and no export step.
+That is the whole storage format. No database, no account, no upload. You can `grep` it,
+edit it, or delete a file you would rather not keep.
+
+## Install
+
+```sh
+npm install -g @abhitsian/myday
+myday init      # explains exactly what gets read, then asks
+myday start     # begins recording
+```
+
+macOS, Node 18 or later. Prefer an app? Download `My Day.app`, drag it to Applications, and
+it walks you through the same six screens with a menu bar icon.
+
+Removing it is one command and takes everything with it:
+
+```sh
+myday uninstall
+```
+
+## How it works
+
+```mermaid
+flowchart LR
+    A["Every 15s<br/>which app is in front"] --> D
+    B["Your browser's own<br/>history database"] --> D
+    C["Claude Code<br/>session transcripts"] --> D
+    D["Every 10 minutes<br/>one Markdown note"] --> E["~/.myday/memories/"]
+    E --> F["The app<br/>timeline, threads, friction"]
+    E --> G["MCP server<br/>your AI assistant reads it"]
+```
+
+Three sources feed it, and you switch each one on or off separately. Reading your browsing
+is a different decision from reading your terminal work, so they are different switches.
+
+### It works before you grant it anything
+
+| Tier | Needs | You get |
+|------|-------|---------|
+| 1 | nothing at all | Which app was in front, and for how long |
+| 2 | nothing at all | Page titles and addresses, from your browser's own history |
+| 3 | Accessibility, one small binary | Window titles — the document, the chat, the folder |
+
+Most tools in this category want an invasive permission before they show you anything, so
+you have to trust them on a promise. Run tiers 1 and 2 for a week and read the output first.
+
+For tier 3, `myday build-helper` compiles a 60-line Swift program that reads two attributes
+and prints them. You grant Accessibility to that one binary rather than to `osascript`,
+which would hand the same power to every script on your machine.
+
+---
+
+## The timeline
+
+<img src="docs/screens/timeline.jpg" alt="The timeline: notes and Claude Code sessions on one rail">
+
+Your day in order, with real application icons and clickable page links. Claude Code sessions
+sit on the same rail, each with a **resume** button that copies the command to reopen it.
+
+## Threads
+
+<img src="docs/screens/threads.jpg" alt="Threads: work that recurs across days, with a per-day run strip">
+
+A tracker tells you that you spent 1h55m in Slack, which is a fact about software. Threads
+tell you the checkout bug ran across four days and has been quiet since Tuesday, which is a
+fact about your work.
+
+Nothing is declared. There is no project field to fill in — threads are derived from the
+files you touched and the pages you opened. Each carries a state (today, yesterday, this
+week, quiet), and the ones you picked up and put down surface first.
+
+## Friction
+
+The costs your day hides from you, each with the evidence attached:
+
+- Signing in to the same host 29 times a week, which is a session-timeout setting rather than a habit
+- The same search typed on 13 separate days, because the answer never got saved anywhere
+- A page you navigate to most days and never bookmarked
+
+---
+
+## Your AI assistant can read it
+
+This is the part that changes how the tool feels. My Day ships an MCP server, so any
+assistant that speaks MCP can look up what you did without you re-explaining it.
+
+**Claude Code** — add to `~/.claude.json`:
+
+```jsonc
+{ "mcpServers": { "myday": { "command": "myday-mcp" } } }
+```
+
+**Cursor** — add to `.cursor/mcp.json`. **Windsurf, Zed, Continue** and anything else with
+MCP support take the same two lines.
+
+Then, mid-task:
+
+> **You:** pick up where I left off
+>
+> **Claude:** You were tracing a double-fire in the webhook retry loop — you'd read Stripe's
+> idempotency docs and edited `retry.ts`, and `retry.test.ts` was still failing on the
+> duplicate-delivery case (2026-08-14 15:30).
+
+Four tools are exposed: `history_search`, `history_window`, `history_resume`, and
+`history_time_by`.
+
+Notes are built from web page titles and window titles, which are text other people control.
+A page titled *"ignore previous instructions"* would otherwise reach an assistant that can
+run commands. Every response comes back inside a fenced envelope with the brackets escaped,
+so the payload cannot break out of it, and the rule is restated on every single response.
+
+---
+
+## Where this came from
+
+OpenAI shipped **Computer History** in the ChatGPT Mac app in August 2026: record interaction
+events rather than screenshots, roll them up every ten minutes into Markdown memory files,
+read those back when the user asks about past work. Windows Recall and Rewind had taken the
+screenshot route before it and spent their public lives defending that choice.
+
+The text-only decision is the good one, and My Day keeps it. Where the two part ways:
+
+| | ChatGPT Computer History | My Day |
+|---|---|---|
+| Before you grant anything | nothing | app names, then full browsing detail |
+| Page detail | scraped from the window | read from the browser's own history |
+| Works with | ChatGPT | any MCP client — Claude Code, Cursor, Zed |
+| Storage | local Markdown | local Markdown, and you pick the folder |
+| Recurring work | — | derived threads with a state per thread |
+| Recurring costs | — | friction, with the evidence attached |
+| Your own history | starts empty | reconstructed from months of browsing on day one |
+
+That last row matters more than it sounds. Threads need two or three weeks before they mean
+anything, so a fresh install has nothing to say at exactly the moment you decide whether to
+keep it. My Day reads the browsing history already on your disk and writes notes for the past
+sixty days, so the first screen you see is populated.
+
+## Privacy
+
+Rules apply before anything is written, so an app you exclude never reaches disk. There is no
+later filtering step to get wrong.
+
+```sh
+myday permissions apps +Signal          # never record Signal
+myday permissions sites include         # switch to an allow-list
+myday clear hour                        # delete the last hour, notes and events both
+```
+
+Password managers are excluded out of the box. Private browsing is never included, because
+your browser does not record it. Summaries are written locally with no model by default, and
+enabling one logs every send to a file you can read.
+
+Clearing removes the notes **and** the raw events behind them. Deleting a note alone would
+leave the events on disk and the next rollup would write it straight back.
 
 ## Commands
 
 ```
 myday init | start | stop | status | uninstall
-myday show [--date D]        the day's memories
-myday apps [--week]          time per app, context switches, the shape of the day
-myday browse [--full]        what you read, clustered by site
-myday sessions               Claude Code sessions, with the prompt that started each
-myday search <query> | ask "<question>" | view
-myday rollup [--date D] [--backfill N] [--force]
-myday config [key] [value] | build-helper
+myday show | timeline | apps | browse | sessions
+myday threads | friction | search <q> | ask "<question>"
+myday sources | permissions | clear | backfill
+myday view                       # the app, in a browser
 ```
 
-`apps`, `browse` and `sessions` read data already on disk. They cost no model call, no
-network, and no permission beyond what capture already has.
+## What it does not do yet
 
-`myday uninstall` stops the daemon and deletes every file it created.
+- **Window titles need a permission**, so without tier 3 a note names the app and not the document.
+- **Threads bind 41% of consecutive notes.** Continuous work still fragments more than it should.
+- **Nothing pushes.** Every view waits for you to open it.
+- **macOS only.** The capture layer is Cocoa and LaunchServices.
 
-## Prior art
-
-OpenAI shipped Computer History in the ChatGPT Mac app in August 2026 — the same idea:
-interaction events rather than screenshots, rolled up on a ten-minute cadence into Markdown
-memory files. Windows Recall and Rewind took the screenshot route.
-
-myday differs on three things: it works at tier 1 with no permission at all, it reads
-page detail from the browser's history DB rather than scraping the window, and it is a local
-file tree with an MCP server rather than a feature inside one assistant.
-
-MIT.
+MIT licensed. Built by [Abhishek Sivaraman](https://github.com/abhitsian).

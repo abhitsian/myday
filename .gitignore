@@ -4,3 +4,4 @@ helper/frontwindow
 .DS_Store
 .impeccable/
 app/build/
+*.tgz

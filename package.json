@@ -32,6 +32,10 @@
     "mcp",
     "helper",
     "public",
+    "app/Sources",
+    "app/Info.plist",
+    "app/build-app.sh",
+    "app/make-icon.swift",
     "README.md",
     "THREAT-MODEL.md",
     "LICENSE"
@@ -41,5 +45,14 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abhitsian/myday.git"
+  },
+  "homepage": "https://github.com/abhitsian/myday#readme",
+  "bugs": {
+    "url": "https://github.com/abhitsian/myday/issues"
+  },
+  "author": "Abhishek Sivaraman"
 }
