@@ -54,8 +54,19 @@ myday init      # explains exactly what gets read, then asks
 myday start     # begins recording
 ```
 
-macOS, Node 18 or later. Prefer an app? Download `My Day.app`, drag it to Applications, and
-it walks you through the same six screens with a menu bar icon.
+macOS, Node 18 or later.
+
+Want the menu bar app instead of the CLI? Build it in one command — it needs Xcode Command
+Line Tools and takes a few seconds:
+
+```sh
+git clone https://github.com/abhitsian/myday && cd myday
+./app/build-app.sh --install     # → /Applications/My Day.app
+```
+
+The app is signed ad-hoc rather than with an Apple Developer ID, which is why you build it
+locally rather than downloading a binary. A downloaded copy would be quarantined by
+Gatekeeper; one you compile yourself is not.
 
 Removing it is one command and takes everything with it:
 
