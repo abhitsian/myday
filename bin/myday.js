@@ -249,7 +249,9 @@ function requireInit() {
   say('Not set up. Run `myday init` first — it explains what gets read before anything is read.');
   return false;
 }
-const dur = (s) => (s >= 3600 ? `${Math.floor(s / 3600)}h ${S.pad(Math.round((s % 3600) / 60))}m` : `${Math.round(s / 60)}m`);
+// Whole minutes first, then split — the other way round prints "9h 60m" at 9h 59m 59s.
+const dur = (s) => { const m = Math.round(s / 60);
+  return m >= 60 ? `${Math.floor(m / 60)}h ${S.pad(m % 60)}m` : `${m}m`; };
 const bar = (pct, w = 24) => '█'.repeat(Math.max(0, Math.round(pct / 100 * w))).padEnd(w, '·');
 
 function cmdApps() {
@@ -329,6 +331,10 @@ function cmdPermissions() {
     say('');
   }
   say('Private browsing is never included — browsers do not record it.');
+  say('');
+  say('  myday permissions apps  +Slack        add a rule       (also: sites)');
+  say('  myday permissions apps  -Slack        remove one');
+  say('  myday permissions sites include       switch the mode  (include | exclude)');
 }
 
 async function cmdClear() {
@@ -502,8 +508,23 @@ function cmdConfig() {
   if (Array.isArray(S.DEFAULTS[key])) v = value.split(',').map((s) => s.trim()).filter(Boolean);
   else if (typeof S.DEFAULTS[key] === 'number') v = Number(value);
   else if (typeof S.DEFAULTS[key] === 'boolean') v = /^(1|true|yes|on)$/i.test(value);
+  const before = cfg[key];
   S.writeConfig({ [key]: v });
   say(`${key} = ${JSON.stringify(v)}`);
+
+  // Setting a list replaces it. Someone typing `config excludeApps Slack` to add Slack has
+  // just dropped 1Password and Keychain Access from their exclusions, and the only clue was
+  // a shorter array in the echo above.
+  if (Array.isArray(v) && Array.isArray(before)) {
+    const dropped = before.filter((x) => !v.includes(x));
+    if (dropped.length) {
+      say(`\nThat replaced the list. No longer there: ${dropped.join(', ')}`);
+      if (/^(exclude|include)(Apps|Sites)$/.test(key)) {
+        const kind = /Apps$/.test(key) ? 'apps' : 'sites';
+        say(`To add one without replacing the rest: myday permissions ${kind} +<pattern>`);
+      }
+    }
+  }
 }
 
 // ---------------------------------------------------------------- viewer
