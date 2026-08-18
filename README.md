@@ -55,11 +55,21 @@ That right-click is needed exactly once. My Day is signed ad-hoc rather than wit
 Apple certificate, so macOS asks you to confirm the first launch. Everything after that is a
 normal double-click. Nothing else to install — a Node runtime ships inside the app.
 
-Six screens walk you through what it reads before it reads anything, and it lives in the menu
+Five screens walk you through what it reads before it reads anything, and it lives in the menu
 bar from then on.
+
+One consequence of the ad-hoc signature: macOS keys the Accessibility permission to the exact
+binary, so **updating the app clears it** and window titles stop being recorded until you grant
+it again. The menu bar says "Window titles off" when that has happened, and clicking it opens
+the right settings pane. Everything else keeps working meanwhile — app names and times need no
+permission at all.
 
 <details>
 <summary>Prefer the command line?</summary>
+
+The CLI is an alternative to the app, not a companion to it. Both record, and running both
+means two recorders writing the same file, so pick one. `myday start` checks whether the app is
+running and stops rather than doubling up.
 
 ```sh
 npm install -g @abhitsian/myday
@@ -70,9 +80,14 @@ myday start     # begins recording
 The CLI needs Node 18+, and `myday build-helper` compiles a small Swift program for window
 titles (that step wants Xcode Command Line Tools). The app needs neither.
 
+If you already use the app, skip `myday start` — every read command works against the same
+history either way.
+
 </details>
 
-Removing it takes everything with it — "Uninstall" in the menu bar, or `myday uninstall`.
+Removing it takes everything with it — "Delete Everything and Quit" in the menu bar, or
+`myday uninstall`. Both remove every note, every raw event, and the settings; the app itself
+goes to the Trash the usual way.
 
 ## How it works
 

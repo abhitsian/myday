@@ -41,7 +41,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "postinstall": "node -e \"console.log('\\nmyday installed. Run: myday init\\n')\""
+    "postinstall": "node -e \"console.log('\\nmyday installed. Run: myday init\\n')\"",
+    "test": "./test/smoke.sh"
   },
   "publishConfig": {
     "access": "public"

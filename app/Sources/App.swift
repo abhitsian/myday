@@ -1,4 +1,5 @@
 import Cocoa
+import ServiceManagement
 import SwiftUI
 import WebKit
 
@@ -120,6 +121,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, WKNavi
         add(menu, "Settings…", #selector(showSettings))
         add(menu, "Reveal files in Finder", #selector(revealFiles))
         menu.addItem(.separator())
+        // A tool that records you has to make leaving as easy as arriving, and reachable from
+        // the same menu as everything else rather than only from a terminal.
+        add(menu, "Delete Everything and Quit…", #selector(deleteEverything))
         add(menu, "Quit My Day", #selector(quit), key: "q")
     }
 
@@ -147,6 +151,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, WKNavi
     }
 
     @objc private func quit() { NSApp.terminate(nil) }
+
+    @objc private func deleteEverything() {
+        NSApp.activate(ignoringOtherApps: true)
+        let a = NSAlert()
+        a.alertStyle = .critical
+        a.messageText = "Delete every note My Day has recorded?"
+        a.informativeText = "This removes " + Store.root.path + " — every note, every raw "
+            + "event, and the settings. It cannot be undone.\n\n"
+            + "The app itself stays in Applications; drag it to the Trash to finish."
+        a.addButton(withTitle: "Delete Everything")
+        a.addButton(withTitle: "Cancel")
+        // Cancel takes Return, so a stray keypress cannot destroy the history.
+        a.buttons.first?.keyEquivalent = ""
+        a.buttons.last?.keyEquivalent = "\r"
+        guard a.runModal() == .alertFirstButtonReturn else { return }
+
+        sampler.stop()
+        viewer?.terminate()
+        if SMAppService.mainApp.status == .enabled { try? SMAppService.mainApp.unregister() }
+        try? FileManager.default.removeItem(at: Store.root)
+        NSWorkspace.shared.selectFile(Bundle.main.bundlePath, inFileViewerRootedAtPath: "/Applications")
+        NSApp.terminate(nil)
+    }
 
     @objc private func showSettings() {
         // The config file is the settings screen. It is documented, hand-editable, and the
