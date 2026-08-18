@@ -186,7 +186,14 @@ function cmdStatus() {
   say(`  today         ${raw.length} samples · ${entries.length} memories · ${Math.round(entries.reduce((a, e) => a + e.activeSec, 0) / 60)}m active`);
   say(`  app names     ${caps.appNames ? 'yes' : 'NO — lsappinfo unavailable'}`);
   const titlePct = raw.length ? Math.round(titled / raw.length * 100) : 0;
-  const titleState = !caps.helperBuilt ? 'helper not built — run `myday build-helper`'
+  // The helper is how the CLI daemon reads titles. The Mac app has its own Accessibility
+  // grant and needs no helper, so reporting "helper not built" while the app is recording
+  // titles contradicts both the menu bar and the data on disk.
+  const titleState = titled > 0 && !caps.helperBuilt
+      ? `yes (${titlePct}% of today's samples, recorded by the app)`
+    : !caps.helperBuilt ? (macAppRunning()
+        ? 'off — the app has them switched off, or Accessibility was cleared by an update'
+        : 'helper not built — run `myday build-helper`')
     : caps.windowTitles ? `yes (${titlePct}% of today's samples)`
     : caps.recentSamples < 4 ? 'helper built, waiting for samples to confirm'
     : `NOT reaching the daemon — grant Accessibility to ${C.HELPER}`;
