@@ -10,7 +10,7 @@ import WebKit
 // in the Accessibility list, one thing to quit.
 
 @main
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, WKNavigationDelegate, WKUIDelegate {
     /// NSApplication.delegate is a WEAK reference. A delegate held only by a local in
     /// main() is deallocated the moment main() returns, taking the status item, the
     /// sampler and every window with it — the app runs and does nothing at all.
@@ -196,6 +196,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         let web = WKWebView(frame: NSRect(x: 0, y: 0, width: 940, height: 700))
+        // Links in the Reading list point at the real web. Without these delegates a click
+        // would replace the app's own page with that site, leaving no way back.
+        web.navigationDelegate = self
+        web.uiDelegate = self
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 940, height: 700),
                          styleMask: [.titled, .closable, .miniaturizable, .resizable],
                          backing: .buffered, defer: false)
@@ -212,6 +216,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             guard let self, let url = URL(string: "http://localhost:\(self.viewerPort)") else { return }
             web.load(URLRequest(url: url))
         }
+    }
+
+    // MARK: links out
+    //
+    // Anything that is not the local viewer opens in the user's browser, where their
+    // session and extensions already are.
+
+    private func openExternally(_ url: URL?) {
+        guard let url, let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    private func isLocalViewer(_ url: URL?) -> Bool {
+        guard let host = url?.host else { return false }
+        return host == "localhost" || host == "127.0.0.1"
+    }
+
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+                 decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        let url = navigationAction.request.url
+        if navigationAction.navigationType == .linkActivated, !isLocalViewer(url) {
+            openExternally(url)
+            decisionHandler(.cancel)
+            return
+        }
+        decisionHandler(.allow)
+    }
+
+    /// target="_blank" asks for a new window; hand it to the browser instead of opening
+    /// a second, chromeless WKWebView the user cannot navigate.
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+                 for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        openExternally(navigationAction.request.url)
+        return nil
     }
 
     private func showNodeMissing() {

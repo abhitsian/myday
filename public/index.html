@@ -211,6 +211,12 @@ h2 span{font-weight:400;color:var(--faint)}
 .rhost .when{margin-left:auto}
 .rart{display:flex;gap:11px;align-items:baseline;padding:5px 0}
 .rart .rt{flex:1;min-width:0;line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* A reading list should not shout in link blue, but a title with no affordance at all
+   reads as plain text. A hairline underline says clickable and stays out of the way. */
+.rart a{color:inherit;text-decoration:underline;text-decoration-color:var(--line);
+  text-decoration-thickness:1px;text-underline-offset:3px}
+.rart a:hover{color:var(--accent);text-decoration-color:var(--accent)}
+.rart a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
 .rart .rc{font-family:var(--num);font-size:var(--t-xs);color:var(--faint);flex:none}
 
 /* ── Friction: an audit, so each row carries its cost as a bar you can rank by eye. ── */
@@ -509,9 +515,10 @@ async function renderPane(){
     // second time-gutter log would just be the Timeline again.
     const byHost = {};
     for (const b of d.blocks) {
-      const g = byHost[b.host] || (byHost[b.host] = { host: b.host, count: 0, first: b.start, last: b.end||b.start, titles: [] });
+      const g = byHost[b.host] || (byHost[b.host] = { host: b.host, count: 0, first: b.start, last: b.end||b.start, pages: [] });
       g.count += b.count; g.last = b.end || b.start;
-      for (const t of b.titles) if (!g.titles.includes(t)) g.titles.push(t);
+      for (const pg of (b.pages || b.titles.map(t=>({title:t,url:null}))))
+        if (!g.pages.some(x=>x.title===pg.title)) g.pages.push(pg);
     }
     const groups = Object.values(byHost).sort((a,b)=>b.count-a.count);
     pane.innerHTML =
@@ -519,8 +526,11 @@ async function renderPane(){
       groups.map(g=>`<div class="rgroup">
         <div class="rhost"><b>${esc(g.host)}</b><span>${g.count} page${g.count===1?'':'s'}</span>
           <span class="when">${g.first}${g.last!==g.first?'–'+g.last:''}</span></div>`+
-        g.titles.slice(0,6).map(t=>`<div class="rart"><span class="rt">${esc(t)}</span></div>`).join('')+
-        (g.titles.length>6?`<div class="rart"><span class="rc">+${g.titles.length-6} more</span></div>`:'')+
+        g.pages.slice(0,8).map(pg=>`<div class="rart"><span class="rt">`+
+          (pg.url ? `<a href="${esc(pg.url)}" target="_blank" rel="noopener noreferrer"
+                        title="${esc(pg.url)}">${esc(pg.title)}</a>` : esc(pg.title))+
+          `</span></div>`).join('')+
+        (g.pages.length>8?`<div class="rart"><span class="rc">+${g.pages.length-8} more</span></div>`:'')+
       `</div>`).join('');
   }
 
