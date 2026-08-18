@@ -37,6 +37,15 @@ const ask = (q) => new Promise((res) => {
 });
 
 // ---------------------------------------------------------------- init
+// Every day of range costs a scan. Unbounded, `?days=99999` walked a hundred thousand dates
+// and — node being single-threaded — held every other request behind it until it finished.
+// A year is more history than any view here reads usefully.
+const MAX_DAYS = 365;
+const days = (v, dflt) => {
+  const n = Math.floor(Number(v));
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, MAX_DAYS) : dflt;
+};
+
 async function cmdInit() {
   const caps = C.capabilities();
   const browsers = B.installed();
@@ -212,7 +221,7 @@ function cmdSearch() {
   if (!requireInit()) return;
   const q = argv.slice(1).filter((a) => !a.startsWith('--')).join(' ');
   if (!q) return say('usage: myday search <query> [--days 30]');
-  const hits = S.search(q, Number(val('days', 30)));
+  const hits = S.search(q, days(val('days'), 30));
   if (!hits.length) return say(`No memory matches "${q}".`);
   say(`${hits.length} match${hits.length === 1 ? '' : 'es'}\n`);
   hits.slice(0, 40).forEach((e) => say(fmtEntry(e, true)));
@@ -364,16 +373,16 @@ function cmdSources() {
 async function cmdBackfill() {
   if (!requireInit()) return;
   if (!SRC.isEnabled('browser')) return say('Browsing is switched off. `myday sources browser on` first.');
-  const days = Number(val('days', 60));
-  say(`Reconstructing notes from browsing, back ${days} days.`);
+  const nDays = days(val('days'), 60);
+  say(`Reconstructing notes from browsing, back ${nDays} days.`);
   say('Only for days with no recorded samples — real capture is never overwritten.\n');
-  const r = await R.backfillFromBrowser({ days, log: (m) => say('  ' + m) });
+  const r = await R.backfillFromBrowser({ days: nDays, log: (m) => say('  ' + m) });
   say(`\n${r.written.length} notes written${r.skipped.length ? `, ${r.skipped.length} days skipped (already recorded)` : ''}.`);
 }
 
 function cmdThreads() {
   if (!requireInit()) return;
-  const r = TH.build(Number(val('days', 7)));
+  const r = TH.build(days(val('days'), 7));
   if (!r.threads.length) return say(`No recurring work found in ${r.notesConsidered} notes. Threads need a few days of history.`);
   const STATE = { today:'today', active:'yesterday', warm:'a few days ago', quiet:'' };
   say(`${r.threads.length} threads from ${r.notesConsidered} notes · ${r.unclustered} one-offs\n`);
@@ -392,7 +401,7 @@ function cmdThreads() {
 
 function cmdFriction() {
   if (!requireInit()) return;
-  const r = FR.report(Number(val('days', 21)));
+  const r = FR.report(days(val('days'), 21));
   if (!r.findings.length) return say(`Nothing recurring found in ${r.days} days of ${r.visits} visits.`);
   say(`${r.days} days · ${r.visits} visits · ${r.findings.length} recurring frictions`);
   say(`~${r.estMinPerWeek} min/week, estimated from counts rather than measured\n`);
@@ -586,12 +595,12 @@ function cmdView() {
       return res.end(JSON.stringify({ sources: SRC.inventory() }));
     }
     if (u.pathname === '/api/threads') {
-      let out; try { out = TH.build(Number(u.searchParams.get('days')) || 7); }
+      let out; try { out = TH.build(days(u.searchParams.get('days'), 7)); }
       catch (e) { out = { error: e.message, threads: [] }; }
       res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify(out));
     }
     if (u.pathname === '/api/friction') {
-      let out; try { out = FR.report(Number(u.searchParams.get('days')) || 21); }
+      let out; try { out = FR.report(days(u.searchParams.get('days'), 21)); }
       catch (e) { out = { error: e.message, findings: [] }; }
       res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify(out));
     }
