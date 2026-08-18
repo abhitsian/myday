@@ -48,31 +48,31 @@ edit it, or delete a file you would rather not keep.
 
 ## Install
 
+**[Download My Day.dmg](https://github.com/abhitsian/myday/releases/latest)** → drag it into
+Applications → **right-click the app and choose Open** the first time.
+
+That right-click is needed exactly once. My Day is signed ad-hoc rather than with a paid
+Apple certificate, so macOS asks you to confirm the first launch. Everything after that is a
+normal double-click. Nothing else to install — a Node runtime ships inside the app.
+
+Six screens walk you through what it reads before it reads anything, and it lives in the menu
+bar from then on.
+
+<details>
+<summary>Prefer the command line?</summary>
+
 ```sh
 npm install -g @abhitsian/myday
 myday init      # explains exactly what gets read, then asks
 myday start     # begins recording
 ```
 
-macOS, Node 18 or later.
+The CLI needs Node 18+, and `myday build-helper` compiles a small Swift program for window
+titles (that step wants Xcode Command Line Tools). The app needs neither.
 
-Want the menu bar app instead of the CLI? Build it in one command — it needs Xcode Command
-Line Tools and takes a few seconds:
+</details>
 
-```sh
-git clone https://github.com/abhitsian/myday && cd myday
-./app/build-app.sh --install     # → /Applications/My Day.app
-```
-
-The app is signed ad-hoc rather than with an Apple Developer ID, which is why you build it
-locally rather than downloading a binary. A downloaded copy would be quarantined by
-Gatekeeper; one you compile yourself is not.
-
-Removing it is one command and takes everything with it:
-
-```sh
-myday uninstall
-```
+Removing it takes everything with it — "Uninstall" in the menu bar, or `myday uninstall`.
 
 ## How it works
 

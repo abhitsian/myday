@@ -664,7 +664,7 @@ function cmdHelp() {
   uninstall            stop, and delete everything
 
   Storage: ${S.ROOT}
-  Docs:    https://github.com/${PKG.repository ? PKG.repository.replace(/^github:/, '') : 'you/myday'}
+  Docs:    ${PKG.homepage || 'https://github.com/abhitsian/myday'}
 `);
 }
 

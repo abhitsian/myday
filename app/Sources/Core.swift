@@ -256,6 +256,14 @@ final class Sampler {
 
 enum Node {
     static var binary: String? {
+        // A Node runtime ships inside the bundle, so someone who has never installed Node
+        // can drag the app to Applications and have everything work. Homebrew's node was
+        // the obvious candidate and the wrong one: it links fifteen non-system dylibs that
+        // would all have to come along. The official build links nothing outside the OS.
+        if let r = Bundle.main.resourcePath {
+            let bundled = r + "/node-runtime/node"
+            if FileManager.default.isExecutableFile(atPath: bundled) { return bundled }
+        }
         for p in ["/opt/homebrew/bin/node", "/usr/local/bin/node", "/usr/bin/node"]
         where FileManager.default.isExecutableFile(atPath: p) { return p }
         // Fall back to a login shell so nvm and friends are on PATH.

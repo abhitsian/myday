@@ -37,6 +37,17 @@ for d in bin lib mcp public package.json README.md THREAT-MODEL.md LICENSE; do
   cp -R "$ROOT/$d" "$C/Resources/node/" 2>/dev/null || true
 done
 
+# A Node runtime, so the app works on a Mac that has never had Node installed.
+if [ -x "$ROOT/vendor/node" ]; then
+  echo "▸ bundling the Node runtime"
+  mkdir -p "$C/Resources/node-runtime"
+  cp "$ROOT/vendor/node" "$C/Resources/node-runtime/node"
+  chmod +x "$C/Resources/node-runtime/node"
+else
+  echo "▸ no vendor/node — the app will fall back to a system Node"
+  echo "  fetch it with: ./app/fetch-node.sh"
+fi
+
 cp "$ROOT/app/Info.plist" "$C/Info.plist"
 [ -f "$ROOT/app/AppIcon.icns" ] && cp "$ROOT/app/AppIcon.icns" "$C/Resources/AppIcon.icns"
 
