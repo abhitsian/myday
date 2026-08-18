@@ -16,6 +16,7 @@ const B = require('../lib/browsers');
 const R = require('../lib/rollup');
 const A = require('../lib/analytics');
 const FR = require('../lib/friction');
+const TH = require('../lib/threads');
 const I = require('../lib/icons');
 
 const PKG = require('../package.json');
@@ -282,6 +283,25 @@ function cmdSessions() {
   }
 }
 
+function cmdThreads() {
+  if (!requireInit()) return;
+  const r = TH.build(Number(val('days', 21)));
+  if (!r.threads.length) return say(`No recurring work found in ${r.notesConsidered} notes. Threads need a few days of history.`);
+  const STATE = { today:'today', active:'yesterday', warm:'a few days ago', quiet:'' };
+  say(`${r.threads.length} threads from ${r.notesConsidered} notes · ${r.unclustered} one-offs\n`);
+  for (const t of r.threads) {
+    const age = t.state==='quiet' ? `quiet ${t.idleDays} days` : STATE[t.state];
+    say(`  ${t.name}`);
+    say(`    ${t.notes} notes over ${t.days} day${t.days===1?'':'s'} · ${t.minutes}m · ${age}${t.established?'':' · new'}`);
+    if (t.titles.length) say(`    ${t.titles[0].slice(0,74)}`);
+    say('');
+  }
+  if (r.openLoops.length) {
+    say('  Picked up and put down:');
+    for (const t of r.openLoops) say(`    ${t.name} — last touched ${t.idleDays} day${t.idleDays===1?'':'s'} ago`);
+  }
+}
+
 function cmdFriction() {
   if (!requireInit()) return;
   const r = FR.report(Number(val('days', 21)));
@@ -407,6 +427,11 @@ function cmdView() {
       });
       res.writeHead(200, { 'content-type': 'application/json' }); return res.end(body);
     }
+    if (u.pathname === '/api/threads') {
+      let out; try { out = TH.build(Number(u.searchParams.get('days')) || 21); }
+      catch (e) { out = { error: e.message, threads: [] }; }
+      res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify(out));
+    }
     if (u.pathname === '/api/friction') {
       let out; try { out = FR.report(Number(u.searchParams.get('days')) || 21); }
       catch (e) { out = { error: e.message, findings: [] }; }
@@ -485,6 +510,7 @@ function cmdHelp() {
   apps [--week]        time per app, context switches, the shape of the day
   browse [--full]      what you read, clustered by site
   sessions             Claude Code sessions, with the prompt that started each
+  threads [--days 21]  the work that recurs, derived from your notes
   friction [--days 21] recurring costs: re-logins, repeat searches, bounce loops
   search <query>       across every memory
   ask "<question>"     answer from the memories (needs a model enabled)
@@ -514,6 +540,7 @@ function cmdHelp() {
       case 'browse': return cmdBrowse();
       case 'sessions': return cmdSessions();
       case 'friction': return cmdFriction();
+      case 'threads': return cmdThreads();
       case 'search': return cmdSearch();
       case 'ask': return await cmdAsk();
       case 'view': return cmdView();

@@ -219,6 +219,27 @@ h2 span{font-weight:400;color:var(--faint)}
 .rart a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
 .rart .rc{font-family:var(--num);font-size:var(--t-xs);color:var(--faint);flex:none}
 
+/* ── Threads: the work, not the software. State is the reason to look, so it leads. ── */
+.thread{display:grid;grid-template-columns:76px 1fr;gap:16px;padding:15px 0;border-bottom:1px solid var(--line)}
+.tstate{font-family:var(--num);font-size:var(--t-xs);padding-top:3px}
+.tstate .pill{display:inline-block;padding:2px 7px;border-radius:5px;white-space:nowrap}
+.tstate .today{background:color-mix(in oklab,var(--s3) 18%,transparent);color:var(--s3)}
+.tstate .active{background:color-mix(in oklab,var(--s1) 16%,transparent);color:var(--s1)}
+.tstate .warm{background:color-mix(in oklab,var(--s4) 20%,transparent);color:var(--warn)}
+.tstate .quiet{background:color-mix(in oklab,var(--s2) 16%,transparent);color:var(--s2)}
+.tname{font-size:var(--t-md);font-weight:650;letter-spacing:-.01em}
+.tnew{font-family:var(--num);font-size:var(--t-xs);color:var(--faint);font-weight:400;margin-left:8px}
+.tmeta{font-family:var(--num);font-size:var(--t-xs);color:var(--mut);margin-top:4px}
+.tsum{color:var(--mut);margin-top:6px;line-height:1.55}
+/* One cell per day in range: the run of a thread is the thing you cannot see in a list. */
+.trun{display:flex;gap:2px;margin-top:9px}
+.trun i{width:9px;height:9px;border-radius:2px;background:var(--grid)}
+.trun i.on{background:var(--accent)}
+.loops{background:var(--sunk);border-radius:var(--r);padding:14px 16px;margin-bottom:22px}
+.loops h3{margin:0 0 8px;font-size:var(--t-sm);font-weight:650}
+.loops div{color:var(--mut);padding:3px 0}
+.loops b{color:var(--ink);font-weight:600}
+
 /* ── Friction: an audit, so each row carries its cost as a bar you can rank by eye. ── */
 .fitem{display:grid;grid-template-columns:1fr 128px;gap:16px;align-items:start;
   padding:14px 0;border-bottom:1px solid var(--line)}
@@ -276,6 +297,7 @@ footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);
     <button class="tab" data-v="apps">Apps</button>
     <button class="tab" data-v="browse">Reading</button>
     <button class="tab" data-v="sessions">Building</button>
+    <button class="tab" data-v="threads">Threads</button>
     <button class="tab" data-v="friction">Friction</button>
   </div>
 
@@ -584,6 +606,42 @@ async function renderPane(){
           d.automation.map(j=>`<div class="rart"><span class="rt">${esc(j.prompt)}…</span>`+
             `<span class="rc">${j.runs}× · ${j.mins}m</span></div>`).join('')
         : '');
+  }
+
+  if (view==='threads'){
+    if (!d.threads || !d.threads.length) return pane.innerHTML =
+      `<div class="none">No recurring work found in ${d.notesConsidered||0} notes.<br>Threads need a few days of history before they mean anything.</div>`;
+    const est = d.threads.filter(t=>t.established);
+    // The run strip needs a fixed calendar so every thread's cells line up day for day.
+    const span = Math.min(d.days, 21);
+    const cal = [];
+    for (let i=span-1;i>=0;i--){ const x=new Date(); x.setDate(x.getDate()-i);
+      cal.push(`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`); }
+    const LABEL={today:'today',active:'yesterday',warm:'this week',quiet:'quiet'};
+
+    pane.innerHTML =
+      `<p class="lede"><span class="big">${d.threads.length}</span> threads running, `+
+      `<b>${est.length}</b> of them across more than one day. `+
+      `${d.unclustered} note${d.unclustered===1?'':'s'} didn't belong to any.</p>`+
+      ((d.openLoops||[]).length
+        ? `<div class="loops"><h3>Picked up and put down</h3>`+
+          d.openLoops.map(t=>`<div><b>${esc(t.name)}</b> — last touched ${t.idleDays} day${t.idleDays===1?'':'s'} ago, after ${t.days} days of work</div>`).join('')+
+          `</div>` : '')+
+      d.threads.map(t=>{
+        const active = new Set(t.when.map(w=>w.date));
+        return `<div class="thread">
+          <div class="tstate"><span class="pill ${t.state}">${LABEL[t.state]||t.state}</span></div>
+          <div>
+            <div class="tname">${esc(t.name)}${t.established?'':'<span class="tnew">new</span>'}</div>
+            <div class="tmeta">${t.notes} notes · ${t.days} day${t.days===1?'':'s'} · ${t.minutes}m`+
+              (t.sites.length?` · ${esc(t.sites.slice(0,3).join(', '))}`:'')+`</div>
+            ${t.titles.length?`<div class="tsum">${esc(t.titles[0])}</div>`:''}
+            <div class="trun" title="${esc(t.first)} → ${esc(t.last)}">`+
+              cal.map(dt=>`<i class="${active.has(dt)?'on':''}" title="${dt}"></i>`).join('')+
+            `</div>
+          </div>
+        </div>`;
+      }).join('');
   }
 
   if (view==='friction'){
