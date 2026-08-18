@@ -11,26 +11,27 @@ import ServiceManagement
 // shows a real note first and asks second, which is the honest order and also the
 // persuasive one.
 
+// Five screens. "Writing style" used to be one of them and is now a setting: it asked people
+// to choose who writes their notes before they knew what a note was for, which is a decision
+// about an implementation detail dressed up as a first-run question.
 enum Step: Int, CaseIterable {
-    case welcome, whatYouGet, privacy, permission, writing, done
+    case welcome, whatYouGet, sources, permission, done
 
     var title: String {
         switch self {
         case .welcome:    return "What it does"
-        case .whatYouGet: return "What you get"
-        case .privacy:    return "Your data"
+        case .whatYouGet: return "What you can ask"
+        case .sources:    return "What it reads"
         case .permission: return "Window titles"
-        case .writing:    return "Writing style"
         case .done:       return "Finish"
         }
     }
     var icon: String {
         switch self {
         case .welcome:    return "sparkles"
-        case .whatYouGet: return "text.book.closed"
-        case .privacy:    return "lock.shield"
+        case .whatYouGet: return "bubble.left.and.text.bubble.right"
+        case .sources:    return "lock.shield"
         case .permission: return "macwindow"
-        case .writing:    return "pencil.line"
         case .done:       return "checkmark.circle"
         }
     }
@@ -39,11 +40,15 @@ enum Step: Int, CaseIterable {
 final class OnboardingModel: ObservableObject {
     @Published var step: Step = .welcome
     @Published var trusted: Bool = Sampler.isTrusted
-    @Published var summarizer: String = "local"
+    // Each source is its own decision. Claude Code was previously switched on without ever
+    // being mentioned, which is a consent gap however useful the data is.
+    @Published var useBrowsing: Bool = true
+    @Published var useClaudeCode: Bool = true
     @Published var startAtLogin: Bool = true
-    @Published var captureBrowsers: Bool = true
     @Published var backfill: Bool = true
     lazy var browsers: [String] = Store.installedBrowsers()
+    lazy var hasClaudeCode: Bool = FileManager.default.fileExists(
+        atPath: FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/projects").path)
     private var poll: Timer?
 
     /// The grant lands only after the person acts in System Settings, so the screen watches
@@ -60,9 +65,12 @@ final class OnboardingModel: ObservableObject {
 
     func finish() {
         Store.ensure()
-        Store.write(["summarizer": summarizer, "onboardedAt": Store.stamp(),
-                     "startAtLogin": startAtLogin, "captureBrowsers": captureBrowsers,
-                     "sources": ["browser": captureBrowsers, "claudeCode": true]])
+        Store.write([
+            "onboardedAt": Store.stamp(),
+            "startAtLogin": startAtLogin,
+            "captureBrowsers": useBrowsing,
+            "sources": ["browser": useBrowsing, "claudeCode": useClaudeCode],
+        ])
         applyLoginItem()
         stopWatching()
     }
@@ -102,7 +110,7 @@ struct OnboardingView: View {
                 footer.padding(.horizontal, 26).padding(.vertical, 14)
             }
         }
-        .frame(width: 760, height: 480)
+        .frame(width: 760, height: 560)
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear { model.watchForGrant() }
         .onDisappear { model.stopWatching() }
@@ -154,9 +162,8 @@ struct OnboardingView: View {
         switch model.step {
         case .welcome:    welcome
         case .whatYouGet: whatYouGet
-        case .privacy:    privacy
+        case .sources:    sources
         case .permission: permission
-        case .writing:    writing
         case .done:       done
         }
     }
@@ -166,20 +173,19 @@ struct OnboardingView: View {
     private var welcome: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Your work, remembered").font(.system(size: 27, weight: .bold)).tracking(-0.4)
-            Text("You already forget most of what you did last Tuesday. Your computer doesn't have to.")
+            Text("You already forget most of what you did last Tuesday. Your Mac doesn't have to.")
                 .font(.system(size: 14)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 7)
+                .fixedSize(horizontal: false, vertical: true).padding(.top, 7)
 
             VStack(spacing: 0) {
-                loopRow("eye", "It watches, quietly",
-                        "Which app you're in, which document is open, and which pages you visit — read from your browser's own history.", true)
-                loopRow("square.and.pencil", "It writes it down",
-                        "Every ten minutes, a short plain-language note. Not screenshots — sentences.", true)
-                loopRow("magnifyingglass", "It remembers",
-                        "Weeks of notes you can search, or ask questions of in plain English.", true)
-                loopRow("bubble.left.and.text.bubble.right", "Your AI assistant reads it",
-                        "So you stop opening every session by re-explaining what you were doing.", false)
+                loopRow("eye", "It notices what you are working on",
+                        "The app in front, the page you are reading, the project you are in. No screenshots and nothing you type.", true)
+                loopRow("square.and.pencil", "It keeps a record you can read",
+                        "A few plain sentences every ten minutes, stored as ordinary text files on this Mac.", true)
+                loopRow("magnifyingglass", "You can ask it things later",
+                        "What was I debugging on Tuesday. Where did I leave off. Which work has gone quiet.", true)
+                loopRow("bubble.left.and.text.bubble.right", "So can your AI assistant",
+                        "Claude Code, Cursor and Zed can read it mid-task, so you stop re-explaining what you were doing.", false)
             }
             .padding(.top, 22)
         }
@@ -211,24 +217,35 @@ struct OnboardingView: View {
 
     private var whatYouGet: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("This is a note").font(.system(size: 24, weight: .bold)).tracking(-0.3)
-            Text("One of these lands every ten minutes you're at the machine.")
+            Text("What you get out of it").font(.system(size: 24, weight: .bold)).tracking(-0.3)
+            Text("The record is the raw material. These are the things it answers.")
                 .font(.system(size: 13.5)).foregroundStyle(.secondary).padding(.top, 5)
 
-            sampleNote.padding(.top, 18)
+            VStack(alignment: .leading, spacing: 13) {
+                payoff("clock.arrow.circlepath", "Where you left off",
+                       "Pick a thread back up without reconstructing it from an open tab.")
+                payoff("point.3.connected.trianglepath.dotted", "The work that keeps recurring",
+                       "Grouped for you across days. Nothing to tag, nothing to fill in.")
+                payoff("exclamationmark.arrow.circlepath", "What keeps costing you",
+                       "Signing in to the same site 29 times a week is a setting, not a habit.")
+                payoff("magnifyingglass", "That thing you read in March",
+                       "Searchable months later, with what you were working on at the time.")
+            }.padding(.top, 20)
 
-            Text("THEN, WEEKS LATER")
-                .font(.system(size: 9.5, weight: .semibold)).tracking(0.8)
-                .foregroundStyle(.tertiary).padding(.top, 22).padding(.bottom, 9)
+            sampleNote.padding(.top, 20)
+        }
+    }
 
-            VStack(alignment: .leading, spacing: 7) {
-                question("What was I debugging on Tuesday?")
-                question("When did I last touch the auth code?")
-                question("Where did my week actually go?")
+    private func payoff(_ icon: String, _ title: String, _ body: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon).font(.system(size: 14)).foregroundStyle(accent)
+                .frame(width: 20).padding(.top, 1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.system(size: 13.5, weight: .semibold))
+                Text(body).font(.system(size: 12.5)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-
-            Text("Ask in the app, or let your coding assistant ask on your behalf mid-task.")
-                .font(.system(size: 12)).foregroundStyle(.secondary).padding(.top, 12)
+            Spacer(minLength: 0)
         }
     }
 
@@ -275,95 +292,66 @@ struct OnboardingView: View {
 
     // MARK: 3 — privacy
 
-    private var privacy: some View {
+    private var sources: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("What it reads, and what it never touches")
-                .font(.system(size: 24, weight: .bold)).tracking(-0.3)
-                .fixedSize(horizontal: false, vertical: true)
+            Text("What it reads").font(.system(size: 24, weight: .bold)).tracking(-0.3)
+            Text("Three sources, each its own decision. Switch any of them off now or later.")
+                .font(.system(size: 13.5)).foregroundStyle(.secondary).padding(.top, 5)
 
-            HStack(alignment: .top, spacing: 18) {
-                privacyCard("checkmark.circle.fill", "Reads", accent, [
-                    "Which app is in front, and for how long",
-                    "That window's title, if you allow it",
-                    "Your browsing history — see below",
-                ])
-                privacyCard("xmark.circle.fill", "Never touches", Color.secondary, [
-                    "Screenshots",
-                    "Anything you type",
-                    "Clipboard, files, audio",
-                ])
+            VStack(spacing: 9) {
+                sourceRow(icon: "macwindow", name: "Apps and windows", always: true, on: .constant(true),
+                          detail: "Which app is in front, and for how long.",
+                          note: "Needed for anything else to make sense.")
+                sourceRow(icon: "safari", name: "Browsing", always: false, on: $model.useBrowsing,
+                          detail: model.browsers.isEmpty
+                            ? "No supported browser found on this Mac."
+                            : "Page titles and addresses from \(model.browsers.joined(separator: ", ")).",
+                          note: "Read from the history your browser already keeps. macOS does not prompt for this, which is why it is being said here. Private windows are never included.")
+                sourceRow(icon: "terminal", name: "Claude Code", always: false, on: $model.useClaudeCode,
+                          detail: model.hasClaudeCode
+                            ? "The project you worked in, what you asked for, and a way back into the session."
+                            : "Not installed — nothing to read.",
+                          note: "Reads session transcripts already on disk.")
             }.padding(.top, 18)
 
-            browserDisclosure.padding(.top, 16)
-
             VStack(alignment: .leading, spacing: 5) {
-                Label("Password managers never reach the disk", systemImage: "lock.fill")
+                Label("Never recorded", systemImage: "xmark.shield")
                     .font(.system(size: 12.5, weight: .semibold))
-                Text("1Password, Keychain Access, Bitwarden and others are dropped before anything is written, not filtered out afterwards. Add your own at any time, and pause from the menu bar whenever you like.")
+                Text("Screenshots, anything you type, your clipboard, file contents, audio. Password managers are dropped before anything is written, and you can add your own exclusions at any time.")
                     .font(.system(size: 12)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(13)
             .background(RoundedRectangle(cornerRadius: 9).fill(accent.opacity(0.07)))
-            .padding(.top, 14)
+            .padding(.top, 16)
 
-            Text("These notes describe your day in detail and they are plain text. Anyone who can run programs as you can read them, so don't turn this on for an account you don't control.")
+            Text("These files describe your day in detail and they are plain text. Anyone who can run programs as you can read them, so don't turn this on for an account you don't control.")
                 .font(.system(size: 11)).foregroundStyle(.tertiary)
-                .fixedSize(horizontal: false, vertical: true).padding(.top, 14)
+                .fixedSize(horizontal: false, vertical: true).padding(.top, 13)
         }
     }
 
-    /// The one thing people do not expect, so it gets its own block and a switch.
-    /// Reading a browser's history file needs no macOS permission at all — there is no
-    /// prompt, no padlock, nothing to click. Leaving that implied would be the single most
-    /// dishonest thing in the flow, so it is stated outright and can be turned off here.
-    private var browserDisclosure: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 7) {
-                Image(systemName: "safari").font(.system(size: 13)).foregroundStyle(accent)
-                Text("It reads your browsing history directly")
-                    .font(.system(size: 12.5, weight: .semibold))
-                Spacer(minLength: 0)
-                Toggle("", isOn: $model.captureBrowsers).labelsHidden().controlSize(.small)
+    private func sourceRow(icon: String, name: String, always: Bool,
+                           on: Binding<Bool>, detail: String, note: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon).font(.system(size: 15)).foregroundStyle(accent)
+                .frame(width: 22).padding(.top, 2)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(name).font(.system(size: 13.5, weight: .semibold))
+                Text(detail).font(.system(size: 12.5)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(note).font(.system(size: 11)).foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Text(model.browsers.isEmpty
-                 ? "No supported browser found on this Mac."
-                 : "My Day opens the history database that \(model.browsers.joined(separator: ", ")) already keep\(model.browsers.count == 1 ? "s" : "") on this Mac, and reads the page titles and addresses from it. macOS does not prompt for this and there is no permission to grant — which is exactly why it is being said here rather than left for you to discover.")
-                .font(.system(size: 12)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Text("It reads a copy, never writes, and skips private windows. Sites matching your exclude list are dropped before anything is saved. Switch it off and My Day still records apps and window titles.")
-                .font(.system(size: 11.5)).foregroundStyle(.tertiary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(13)
-        .background(
-            RoundedRectangle(cornerRadius: 9)
-                .fill(Color(nsColor: .textBackgroundColor))
-                .overlay(RoundedRectangle(cornerRadius: 9).stroke(accent.opacity(0.35), lineWidth: 1.2))
-        )
-    }
-
-    private func privacyCard(_ icon: String, _ title: String, _ tint: Color, _ items: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack(spacing: 6) {
-                Image(systemName: icon).font(.system(size: 12)).foregroundStyle(tint)
-                Text(title).font(.system(size: 12.5, weight: .semibold))
-            }
-            ForEach(items, id: \.self) { i in
-                HStack(alignment: .top, spacing: 7) {
-                    Circle().fill(Color.secondary.opacity(0.35)).frame(width: 3, height: 3).padding(.top, 6)
-                    Text(i).font(.system(size: 12.5)).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+            Spacer(minLength: 0)
+            if always {
+                Text("always").font(.system(size: 10.5)).foregroundStyle(.tertiary).padding(.top, 4)
+            } else {
+                Toggle("", isOn: on).labelsHidden().controlSize(.small).padding(.top, 1)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(13)
-        .background(
-            RoundedRectangle(cornerRadius: 9)
-                .fill(Color(nsColor: .textBackgroundColor))
-                .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.secondary.opacity(0.14), lineWidth: 1))
-        )
+        .background(RoundedRectangle(cornerRadius: 9).fill(Color(nsColor: .controlBackgroundColor)))
     }
 
     // MARK: 4 — permission
@@ -427,62 +415,6 @@ struct OnboardingView: View {
         )
     }
 
-    // MARK: 5 — writing
-
-    private var writing: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Who writes the notes").font(.system(size: 24, weight: .bold)).tracking(-0.3)
-            Text("You can change this later, and switch it off entirely at any time.")
-                .font(.system(size: 13.5)).foregroundStyle(.secondary).padding(.top, 5)
-
-            VStack(spacing: 9) {
-                choice("local", "This Mac", "Nothing leaves",
-                       "A plain list of the apps and pages in each ten minutes. No model, no network, no cost.")
-                choice("claude-cli", "Claude Code", "Recommended",
-                       "Real sentences, like the note you just saw. Uses the claude command already on your Mac. Each ten-minute window is sent to the model.")
-                choice("api", "An API key", nil,
-                       "The same, via ANTHROPIC_API_KEY. Roughly fifty short requests a day.")
-            }.padding(.top, 18)
-
-            Text("Every send is appended to ~/.myday/egress.log, so “what left my machine, and when” has an answer you can read rather than take on trust.")
-                .font(.system(size: 11)).foregroundStyle(.tertiary)
-                .fixedSize(horizontal: false, vertical: true).padding(.top, 14)
-        }
-    }
-
-    private func choice(_ id: String, _ title: String, _ tag: String?, _ desc: String) -> some View {
-        Button {
-            model.summarizer = id
-        } label: {
-            HStack(alignment: .top, spacing: 11) {
-                Image(systemName: model.summarizer == id ? "largecircle.fill.circle" : "circle")
-                    .foregroundStyle(model.summarizer == id ? accent : Color.secondary.opacity(0.5))
-                    .font(.system(size: 15))
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
-                        Text(title).font(.system(size: 13.5, weight: .semibold))
-                        if let tag {
-                            Text(tag)
-                                .font(.system(size: 9.5, weight: .semibold)).tracking(0.3)
-                                .foregroundStyle(accent)
-                                .padding(.horizontal, 5).padding(.vertical, 1.5)
-                                .background(Capsule().fill(accent.opacity(0.13)))
-                        }
-                    }
-                    Text(desc).font(.system(size: 12)).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true).multilineTextAlignment(.leading)
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(12)
-            .background(RoundedRectangle(cornerRadius: 9)
-                .fill(model.summarizer == id ? accent.opacity(0.08) : Color(nsColor: .controlBackgroundColor)))
-            .overlay(RoundedRectangle(cornerRadius: 9)
-                .stroke(model.summarizer == id ? accent.opacity(0.45) : .clear, lineWidth: 1.2))
-        }
-        .buttonStyle(.plain)
-    }
-
     // MARK: 6 — done
 
     private var done: some View {
@@ -521,7 +453,7 @@ struct OnboardingView: View {
             // weeks, so a fresh install is least impressive exactly when someone decides
             // whether to keep it. The browser has months of history already and reading it
             // costs no permission, so day one can show a populated product.
-            if model.captureBrowsers {
+            if model.useBrowsing {
                 VStack(alignment: .leading, spacing: 3) {
                     Toggle("Fill in the last 60 days from my browser history", isOn: $model.backfill)
                         .font(.system(size: 12.5))
@@ -532,6 +464,10 @@ struct OnboardingView: View {
             }
             Toggle("Start My Day when I log in", isOn: $model.startAtLogin)
                 .font(.system(size: 12.5)).padding(.top, 10)
+
+            Text("Notes are written on this Mac with no model and no network. Settings can hand that job to Claude instead, for fuller sentences.")
+                .font(.system(size: 11)).foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true).padding(.top, 10)
         }
     }
 
@@ -567,7 +503,7 @@ struct OnboardingView: View {
     private var primaryLabel: String {
         switch model.step {
         case .done:    return "Start recording"
-        case .privacy: return "I understand"
+        case .sources: return "I understand"
         default:       return "Continue"
         }
     }
@@ -577,7 +513,9 @@ struct OnboardingView: View {
         // Capture begins once the privacy screen has been acknowledged, not at the end of
         // the flow, so the permission and writing screens are chosen with real notes
         // already accumulating behind them.
-        if model.step == .privacy { Store.ensure(); Store.write([:]) }
+        // Capture begins once the sources screen has been acknowledged, so the permission
+        // and finish screens are decided with real notes already accumulating behind them.
+        if model.step == .sources { Store.ensure(); Store.write([:]) }
         model.step = Step(rawValue: model.step.rawValue + 1) ?? .done
     }
 }

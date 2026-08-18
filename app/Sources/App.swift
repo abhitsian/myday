@@ -159,7 +159,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, WKNavi
     private func showOnboarding() {
         let model = OnboardingModel()
         let view = OnboardingView(model: model) { [weak self] in
-            let wantsBackfill = model.backfill && model.captureBrowsers
+            let wantsBackfill = model.backfill && model.useBrowsing
             self?.onboardingWindow?.close()
             self?.onboardingWindow = nil
             self?.beginRecording()
@@ -170,7 +170,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, WKNavi
                 DispatchQueue.global(qos: .utility).async { Node.run(["backfill", "--days", "60"]) }
             }
         }
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 480),
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 560),
                          styleMask: [.titled, .closable],
                          backing: .buffered, defer: false)
         // A plain titled window. .fullSizeContentView with a transparent titlebar left the

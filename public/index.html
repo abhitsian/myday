@@ -248,6 +248,20 @@ h2 span{font-weight:400;color:var(--faint)}
   padding:7px 13px;font-size:var(--t-xs);color:var(--ink);cursor:pointer}
 .clearbar button:hover{border-color:var(--s8);color:var(--s8)}
 .clearbar button.danger{color:var(--s8)}
+.clearbar button.on{border-color:var(--accent);color:var(--accent);font-weight:600}
+.srow{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:13px 0;border-bottom:1px solid var(--line)}
+.srow:last-child{border-bottom:0}
+.srow.off{opacity:.5}
+.srow .pnote{margin:1px 0 0}
+.reon{margin-top:10px;font:inherit;font-size:var(--t-xs);padding:6px 14px;border-radius:999px;
+  border:1px solid var(--accent);background:var(--accent);color:#fff;font-weight:600;cursor:pointer}
+.srow>div:first-child{max-width:70ch}
+.sname{font-size:var(--t-sm);font-weight:600;margin-bottom:2px}
+.pnote.dim{opacity:.62}
+.salways{font-size:var(--t-xs);color:var(--faint);white-space:nowrap;padding-top:3px}
+.stog{flex:none;min-width:52px;font:inherit;font-size:var(--t-xs);padding:5px 12px;border-radius:999px;
+  border:1px solid var(--line);background:var(--card);color:var(--mut);cursor:pointer}
+.stog.on{border-color:var(--accent);background:var(--accent);color:#fff;font-weight:600}
 
 /* ── Threads: the work, not the software. State is the reason to look, so it leads. ── */
 .thread{display:grid;grid-template-columns:76px 1fr;gap:16px;padding:15px 0;border-bottom:1px solid var(--line)}
@@ -666,6 +680,17 @@ async function renderPane(){
   }
 
   if (view==='sessions'){
+    setTimeout(()=>{ const r=pane.querySelector('.reon'); if(r) r.onclick=async()=>{
+      await fetch('/api/sources',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({id:r.dataset.src,enabled:true})});
+      render();
+    };}, 0);
+    // Two different empty states. Saying "no transcripts found" when the person switched the
+    // source off is a lie the app can check, and it sends them looking for a bug instead of
+    // a setting.
+    if (d.disabled) return pane.innerHTML =
+      '<div class="none">Claude Code is switched off under Permissions.<br>'+
+      '<button class="reon" data-src="claudeCode">Turn it back on</button></div>';
     if (!d.available) return pane.innerHTML =
       '<div class="none">No Claude Code transcripts found.<br>This view is for Claude Code users.</div>';
     if (!d.sessions.length) return pane.innerHTML = '<div class="none">No sessions on this day.</div>';
@@ -755,6 +780,8 @@ async function renderPane(){
 
   if (view==='permissions'){
     const P = await (await fetch('/api/permissions')).json();
+    const CFG = await (await fetch('/api/config')).json();
+    const SRC = (await (await fetch('/api/sources')).json()).sources || [];
     const group = (label, kind, mode, list, placeholder, help) => {
       const inc = mode === 'include';
       return `<div class="pgroup">
@@ -784,6 +811,23 @@ async function renderPane(){
          <div class="pnote">${P.paused ? 'Paused. Nothing is being recorded.' : 'Recording. A note is written every ten minutes you are at the machine.'}</div>
          <div class="clearbar"><button id="pPause">${P.paused?'Resume recording':'Pause recording'}</button></div>
        </div>`+
+      `<div class="pgroup">
+         <div class="phead"><h2>What contributes</h2></div>
+         <div class="pnote">Each source is a separate decision. Switching one off stops it being read from now on; what it already wrote stays until you clear it.</div>
+         <div id="srcRows"></div>
+       </div>`+
+      `<div class="pgroup">
+         <div class="phead"><h2>Who writes the notes</h2></div>
+         <div class="pnote">Notes are written every ten minutes. This chooses what does the writing.</div>
+         <div class="clearbar">`+
+           [['local','This Mac','Keyword summaries. Nothing leaves the machine.'],
+            ['claude-cli','Claude Code','Full sentences, via the claude command you already have.'],
+            ['api','API key','Full sentences, via ANTHROPIC_API_KEY.']]
+             .map(([id,label,note])=>`<button data-summ="${id}" class="${CFG.summarizer===id?'on':''}"`+
+               ` title="${esc(note)}">${esc(label)}${CFG.summarizer===id?' ✓':''}</button>`).join('')+
+         `</div>
+         <div class="pnote" style="margin-top:8px" id="summNote"></div>
+       </div>`+
       group('Apps', 'app', P.appMode, P.appMode==='include'?P.includeApps:P.excludeApps,
             'App name, or a pattern like 1Password*',
             'Matching is case-insensitive; <code>*</code> is a wildcard. Applied before anything is written, so a blocked app never reaches disk.')+
@@ -812,6 +856,38 @@ async function renderPane(){
     });
     pane.querySelectorAll('[data-add]').forEach(i=>i.onkeydown=e=>{
       if (e.key==='Enter' && i.value.trim()) post({kind:i.dataset.add, value:i.value.trim(), on:true});
+    });
+    const SUMM_NOTE = {
+      local:'Titles are built from what you had open. No model runs and nothing is sent.',
+      'claude-cli':'Each note is sent to Claude to be written. Every send is appended to ~/.myday/egress.log.',
+      api:'Each note is sent to the API to be written. Every send is appended to ~/.myday/egress.log.',
+    };
+    const sn = pane.querySelector('#summNote');
+    if (sn) sn.textContent = SUMM_NOTE[CFG.summarizer] || SUMM_NOTE.local;
+
+    const rows = pane.querySelector('#srcRows');
+    if (rows) rows.innerHTML = SRC.filter(x=>!x.planned).map(x=>`
+      <div class="srow${x.available?'':' off'}">
+        <div>
+          <div class="sname">${esc(x.name)}</div>
+          <div class="pnote">${esc(x.what)}</div>
+          <div class="pnote dim">${esc(x.detail || '')}</div>
+        </div>
+        ${x.required ? '<span class="salways">always on</span>'
+          : !x.available ? '<span class="salways">not found</span>'
+          : `<button class="stog${x.enabled?' on':''}" data-src="${x.id}" data-next="${x.enabled?0:1}">${x.enabled?'On':'Off'}</button>`}
+      </div>`).join('');
+
+    pane.querySelectorAll('[data-src]').forEach(b=>b.onclick=async()=>{
+      await fetch('/api/sources',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({id:b.dataset.src,enabled:b.dataset.next==='1'})});
+      renderPane();
+    });
+
+    pane.querySelectorAll('[data-summ]').forEach(b=>b.onclick=async()=>{
+      await fetch('/api/config',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({summarizer:b.dataset.summ})});
+      renderPane();
     });
     const pp = pane.querySelector('#pPause');
     if (pp) pp.onclick = () => post({paused: !P.paused});

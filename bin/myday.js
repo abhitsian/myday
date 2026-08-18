@@ -515,6 +515,22 @@ function cmdView() {
       });
       res.writeHead(200, { 'content-type': 'application/json' }); return res.end(body);
     }
+    if (u.pathname === '/api/config' && req.method === 'GET') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      return res.end(JSON.stringify(S.readConfig()));
+    }
+    if (u.pathname === '/api/config' && req.method === 'POST') {
+      let b = ''; req.on('data', (c) => (b += c));
+      return req.on('end', () => {
+        try {
+          const p = JSON.parse(b || '{}');
+          const patch = {};
+          for (const k of ['summarizer', 'model']) if (p[k] !== undefined) patch[k] = p[k];
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify(S.writeConfig(patch)));
+        } catch { res.writeHead(400); res.end(); }
+      });
+    }
     if (u.pathname === '/api/permissions') {
       const c = S.readConfig();
       res.writeHead(200, { 'content-type': 'application/json' });
@@ -552,11 +568,23 @@ function cmdView() {
         } catch { res.writeHead(400); res.end(); }
       });
     }
+    if (u.pathname === '/api/sources' && req.method === 'POST') {
+      let b = ''; req.on('data', (c) => (b += c));
+      return req.on('end', () => {
+        try {
+          const { id, enabled } = JSON.parse(b || '{}');
+          const s = SRC.inventory().find((x) => x.id === id);
+          // A required source has no off switch, and a planned one has nothing to switch.
+          if (!s || s.required || s.planned) { res.writeHead(400); return res.end(); }
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ sources: SRC.setEnabled(id, !!enabled) }));
+        } catch { res.writeHead(400); res.end(); }
+      });
+    }
     if (u.pathname === '/api/sources') {
       res.writeHead(200, { 'content-type': 'application/json' });
       return res.end(JSON.stringify({ sources: SRC.inventory() }));
     }
-    if (u.pathname === '/api/sources' && req.method === 'POST') { /* handled below */ }
     if (u.pathname === '/api/threads') {
       let out; try { out = TH.build(Number(u.searchParams.get('days')) || 7); }
       catch (e) { out = { error: e.message, threads: [] }; }
