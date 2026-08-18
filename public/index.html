@@ -170,6 +170,64 @@ h2 span{font-weight:400;color:var(--faint)}
 .e:hover .x{opacity:1}
 .x:hover{color:var(--s8)}
 
+/* ── Apps: a stacked week. The question is "what is my mix", so the form has to show
+      composition changing, not seven totals. 2px gaps keep segments legible. ────────── */
+.stackwrap{display:flex;align-items:flex-end;gap:10px;height:230px;margin-top:6px}
+.stackday{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;gap:6px}
+.stackcol{display:flex;flex-direction:column-reverse;gap:2px;border-radius:5px;overflow:hidden}
+.stackcol i{display:block;min-height:2px;transition:filter .12s}
+.stackcol:hover i{filter:brightness(1.12)}
+.stacklab{text-align:center;font-family:var(--num);font-size:var(--t-xs);color:var(--faint);line-height:1.35}
+.stacklab b{display:block;color:var(--mut);font-weight:500}
+.stackday.today .stacklab b{color:var(--ink);font-weight:650}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:16px}
+.legend span{display:flex;align-items:center;gap:6px;font-size:var(--t-xs);color:var(--mut)}
+.legend i{width:9px;height:9px;border-radius:3px}
+/* Today's mix as one bar, so share reads directly rather than by comparing seven columns. */
+.share{display:flex;height:34px;border-radius:8px;overflow:hidden;gap:2px;margin-top:6px}
+.share i{display:block;position:relative}
+.share i span{position:absolute;inset:0;display:grid;place-items:center;font-size:var(--t-xs);
+  color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.4);white-space:nowrap;overflow:hidden}
+
+/* ── Building: sessions are spans, so they get a position on the day, not a list row.
+      Overlap is the point — several terminals at once is the actual shape. ─────────── */
+.gantt{position:relative;margin-top:6px;padding:4px 0;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+.gtick{position:absolute;top:0;bottom:0;width:1px;background:var(--grid)}
+.grow{position:relative;height:30px;display:flex;align-items:center}
+.gbar{position:absolute;height:19px;border-radius:5px;background:var(--s7);display:flex;align-items:center;
+  padding:0 7px;overflow:hidden;min-width:4px}
+.gbar b{font-size:var(--t-xs);font-weight:600;color:#fff;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.glabel{position:absolute;left:0;right:0;font-size:var(--t-xs);color:var(--mut);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.gaxis{position:relative;height:16px;margin-top:6px;font-family:var(--num);font-size:var(--t-xs);color:var(--faint)}
+.gaxis span{transform:translateX(-50%)}
+
+/* ── Reading: this is content, not measurement. It should read like a reading list. ── */
+.rgroup{margin-bottom:26px}
+.rhost{display:flex;align-items:baseline;gap:9px;margin-bottom:7px;
+  padding-bottom:6px;border-bottom:1px solid var(--line)}
+.rhost b{font-size:var(--t-md);font-weight:650;letter-spacing:-.01em}
+.rhost span{font-family:var(--num);font-size:var(--t-xs);color:var(--faint)}
+.rhost .when{margin-left:auto}
+.rart{display:flex;gap:11px;align-items:baseline;padding:5px 0}
+.rart .rt{flex:1;min-width:0;line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rart .rc{font-family:var(--num);font-size:var(--t-xs);color:var(--faint);flex:none}
+
+/* ── Friction: an audit, so each row carries its cost as a bar you can rank by eye. ── */
+.fitem{display:grid;grid-template-columns:1fr 128px;gap:16px;align-items:start;
+  padding:14px 0;border-bottom:1px solid var(--line)}
+.fitem .ft{font-weight:650}
+.fitem .fd{color:var(--mut);margin-top:2px}
+.fitem .ff{margin-top:7px;line-height:1.55;color:var(--mut)}
+.fitem .ff em{font-style:normal;font-family:var(--num);font-size:var(--t-xs);
+  color:var(--faint);margin-right:7px;letter-spacing:.05em}
+.fcost{text-align:right}
+.fcost .n{font-family:var(--num);font-size:var(--t-md);font-weight:650;font-variant-numeric:tabular-nums}
+.fcost .u{font-family:var(--num);font-size:var(--t-xs);color:var(--faint)}
+.fcost .tr{height:6px;background:var(--grid);border-radius:3px;margin-top:6px;overflow:hidden}
+.fcost .tr i{display:block;height:100%;background:var(--s2);border-radius:3px}
+@media(max-width:640px){.fitem{grid-template-columns:1fr}.fcost{text-align:left}}
+
 /* ── browse / sessions ──────────────────────────────────────────────────── */
 .bl{display:flex;gap:14px;padding:10px 0;border-bottom:1px solid var(--line)}
 .bl:last-child{border-bottom:none}
@@ -229,17 +287,23 @@ footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);
 const esc  = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const md   = s => esc(s).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>');
 const bold = s => esc(s).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
-const durm = s => s>=3600 ? `${Math.floor(s/3600)}h ${String(Math.round(s%3600/60)).padStart(2,'0')}m`
-                          : `${Math.round(s/60)}m`;
+const durm = s => {
+  // Round to whole minutes FIRST, then split. Splitting first let 2h59m30s print "2h 60m".
+  const m = Math.round(s/60);
+  return m >= 60 ? `${Math.floor(m/60)}h ${String(m%60).padStart(2,'0')}m` : `${m}m`;
+};
 let D = null, view = 'home', open = new Set();
 
-/* Colour follows the app, not its rank: slots go by sorted name across the day's set, so
-   re-sorting or filtering never repaints a series. Eight fixed hues, never cycled. */
+/* Eight fixed hues, never cycled, handed out in the order given. Callers pass apps ranked
+   by total time over the WEEK, not by today's rank: ranking on the week keeps a colour
+   attached to an app as you move between days, while still spending the eight hues on the
+   apps you actually use. Alphabetical order was stable too, but it pushed Terminal and
+   zoom.us past slot eight and returned them both as the same grey. */
 const SERIES = ['--s1','--s2','--s3','--s4','--s5','--s6','--s7','--s8'];
 let _slots = new Map();
-function assignHues(names){
+function assignHues(rankedNames){
   _slots = new Map();
-  [...new Set(names)].sort().forEach((n,i)=> _slots.set(n, i<SERIES.length ? `var(${SERIES[i]})` : 'var(--faint)'));
+  [...new Set(rankedNames)].forEach((n,i)=> _slots.set(n, i<SERIES.length ? `var(${SERIES[i]})` : 'var(--faint)'));
 }
 const hue = n => _slots.get(n) || 'var(--faint)';
 const appIcon = (a,sz) => `<img src="/api/icon/${encodeURIComponent(a)}" alt="" title="${esc(a)}" loading="lazy"
@@ -331,7 +395,7 @@ async function renderPane(){
     if (!d.stats || !d.stats.activeSec) return pane.innerHTML =
       '<div class="none">Nothing recorded for this day yet.<br>The first note lands within ten minutes of you working.</div>';
     const st=d.stats, apps=d.apps||[];
-    assignHues([...apps.map(a=>a.app), ...d.hours.map(x=>x.top&&x.top[0]).filter(Boolean)]);
+    assignHues([...apps.map(a=>a.app), ...d.hours.map(x=>x.top&&x.top[0]).filter(Boolean)]);   // already time-ranked
     const maxHour=Math.max(...d.hours.map(x=>x.secs),1), maxApp=Math.max(...apps.map(a=>a.secs),1);
     const maxWeek=Math.max(...(d.weekDays||[]).map(w=>w.secs),1);
     const dayName=i=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(i+'T12:00:00').getDay()];
@@ -391,39 +455,125 @@ async function renderPane(){
   if (view==='apps'){
     if (!d.apps || !d.apps.length) return pane.innerHTML =
       '<div class="none">No samples for this day.<br>Check the menu bar — recording may be paused.</div>';
-    assignHues(d.apps.map(a=>a.app));
-    const maxApp=Math.max(...d.apps.map(a=>a.secs),1);
-    const maxWk=Math.max(...d.weekApps.map(a=>a.secs),1);
+    // Hues are assigned across every app in the week, not just today, so a column keeps its
+    // colours as you move between days.
+    assignHues([...d.weekApps.map(a=>a.app), ...d.apps.map(a=>a.app)]);
+    const top = d.weekApps.slice(0,7).map(a=>a.app);
+    const maxDay = Math.max(...(d.weekDays||[]).map(w=>w.secs), 1);
+    const dayName = i => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(i+'T12:00:00').getDay()];
+
+    // Everything outside the top seven becomes one Other band rather than an invented hue.
+    const bands = w => {
+      const e = Object.entries(w.byApp||{});
+      const named = e.filter(([a])=>top.includes(a)).sort((x,y)=>top.indexOf(x[0])-top.indexOf(y[0]));
+      const other = e.filter(([a])=>!top.includes(a)).reduce((t,[,v])=>t+v,0);
+      return other > 0 ? [...named, ['Other', other]] : named;
+    };
+    const colOf = a => a==='Other' ? 'var(--faint)' : hue(a);
+
     pane.innerHTML =
-      `<p class="lede"><span class="big">${durm(d.active)}</span> across <b>${d.apps.length}</b> apps, `+
+      `<p class="lede"><span class="big">${durm(d.active)}</span> across <b>${d.apps.length}</b> apps today, `+
       `with <b>${d.switches}</b> switches — about <b>${d.switchesPerHour}</b> an hour.`+
       (d.longest?` The longest you stayed put was <b>${durm(d.longest.secs)}</b> in ${esc(d.longest.app)}.`:'')+`</p>
-       <h2>Today</h2>`+
-      d.apps.map(a=>bar(a.app, a.pct, `${durm(a.secs)} · ${a.pct}%`, hue(a.app), true)).join('')+
-      `<h2>Last seven days</h2>`+
-      d.weekApps.map(a=>bar(a.app, Math.round(a.secs/maxWk*100), durm(a.secs), hue(a.app), true)).join('');
+
+      <h2>Today's mix <span>— share of time at the machine</span></h2>
+      <div class="share">`+
+        d.apps.filter(a=>a.pct>=1).map(a=>
+          `<i style="width:${a.pct}%;background:${hue(a.app)}" title="${esc(a.app)} · ${durm(a.secs)} · ${a.pct}%">`+
+          (a.pct>=9?`<span>${esc(a.app)} ${a.pct}%</span>`:'')+`</i>`).join('')+
+      `</div>
+
+      <h2>The week, by composition <span>— column height is time, bands are apps</span></h2>
+      <div class="stackwrap">`+
+        (d.weekDays||[]).map(w=>{
+          const h = Math.round(w.secs/maxDay*100);
+          const bs = bands(w);
+          return `<div class="stackday ${w.date===d.date?'today':''}">
+            <div class="stackcol" style="height:${h}%">`+
+              bs.map(([a,v])=>`<i style="flex:${v};background:${colOf(a)}" title="${esc(a)} · ${durm(v)}"></i>`).join('')+
+            `</div>
+            <div class="stacklab"><b>${dayName(w.date)}</b>${w.secs?durm(w.secs):'—'}</div>
+          </div>`;
+        }).join('')+
+      `</div>
+      <div class="legend">`+
+        [...top, ...(( d.weekDays||[]).some(w=>bands(w).some(([a])=>a==='Other'))?['Other']:[])]
+          .map(a=>`<span><i style="background:${colOf(a)}"></i>${esc(a)}</span>`).join('')+
+      `</div>`;
   }
 
   if (view==='browse'){
     if (!d.blocks || !d.blocks.length) return pane.innerHTML =
       '<div class="none">No browsing recorded for this day.</div>';
+    // Grouped by site rather than laid out on a clock: what you read is content, and a
+    // second time-gutter log would just be the Timeline again.
+    const byHost = {};
+    for (const b of d.blocks) {
+      const g = byHost[b.host] || (byHost[b.host] = { host: b.host, count: 0, first: b.start, last: b.end||b.start, titles: [] });
+      g.count += b.count; g.last = b.end || b.start;
+      for (const t of b.titles) if (!g.titles.includes(t)) g.titles.push(t);
+    }
+    const groups = Object.values(byHost).sort((a,b)=>b.count-a.count);
     pane.innerHTML =
-      `<p class="lede"><span class="big">${d.visits}</span> pages across <b>${d.hosts.length}</b> sites.</p>`+
-      d.blocks.map(b=>`<div class="bl"><div class="blt">${b.start}${b.end?'<br>'+b.end:''}</div><div class="blm">`+
-        `<div class="blh">${esc(b.host)}${b.count>1?` <span style="color:var(--faint);font-weight:400">×${b.count}</span>`:''}</div>`+
-        b.titles.slice(0,3).map(t=>`<div class="bli">${esc(t)}</div>`).join('')+`</div></div>`).join('');
+      `<p class="lede"><span class="big">${d.visits}</span> pages across <b>${groups.length}</b> sites.</p>`+
+      groups.map(g=>`<div class="rgroup">
+        <div class="rhost"><b>${esc(g.host)}</b><span>${g.count} page${g.count===1?'':'s'}</span>
+          <span class="when">${g.first}${g.last!==g.first?'–'+g.last:''}</span></div>`+
+        g.titles.slice(0,6).map(t=>`<div class="rart"><span class="rt">${esc(t)}</span></div>`).join('')+
+        (g.titles.length>6?`<div class="rart"><span class="rc">+${g.titles.length-6} more</span></div>`:'')+
+      `</div>`).join('');
   }
 
   if (view==='sessions'){
     if (!d.available) return pane.innerHTML =
       '<div class="none">No Claude Code transcripts found.<br>This view is for Claude Code users.</div>';
     if (!d.sessions.length) return pane.innerHTML = '<div class="none">No sessions on this day.</div>';
+    const mins = t => { const [h,m]=t.split(':').map(Number); return h*60+m; };
+    const lo = Math.max(0, Math.min(...d.sessions.map(s=>mins(s.start))) - 30);
+    const hi = Math.min(1440, Math.max(...d.sessions.map(s=>mins(s.end))) + 30);
+    const span = Math.max(hi-lo, 60);
+    const pctOf = m => (m-lo)/span*100;
+    assignHues(d.projects.map(p=>p.project));
+    // Hour ticks at a spacing that stays readable however long the working span was.
+    const step = span > 600 ? 120 : span > 240 ? 60 : 30;
+    const ticks = [];
+    for (let m = Math.ceil(lo/step)*step; m < hi; m += step) ticks.push(m);
+
     pane.innerHTML =
       `<p class="lede"><span class="big">${d.sessions.length}</span> sessions, <b>${durm(d.totalMins*60)}</b> elapsed`+
-      (d.projects.length?` — mostly ${esc(d.projects[0].project)}`:'')+`.</p>`+
-      d.sessions.map(s=>`<div class="bl"><div class="blt">${s.start}<br>${s.end}</div><div class="blm">`+
-        `<div class="blh">${esc(s.project)} <span style="color:var(--faint);font-weight:400">${s.mins}m · ${s.turns} turns</span></div>`+
-        `<div class="bli">${esc(s.prompt)}</div></div></div>`).join('');
+      (d.spanMins && d.spanMins > d.totalMins
+        ? ` — ${durm(d.spanMins*60)} if you add the spans up, so ${Math.round((1-d.totalMins/d.spanMins)*100)}% of it ran in parallel`
+        : '')+`.</p>
+
+      <h2>When each ran <span>— overlapping bars are sessions open at once</span></h2>
+      <div class="gantt">`+
+        ticks.map(m=>`<span class="gtick" style="left:${pctOf(m)}%"></span>`).join('')+
+        d.sessions.map(sn=>{
+          const l = pctOf(mins(sn.start)), w = Math.max(pctOf(mins(sn.end)) - l, 0.6);
+          const wide = w > 22;
+          return `<div class="grow">
+            <span class="gbar" style="left:${l}%;width:${w}%;background:${hue(sn.project)}"
+                  title="${esc(sn.project)} · ${sn.start}–${sn.end} · ${sn.mins}m · ${sn.turns} turns">`+
+              (wide?`<b>${esc(sn.project)} · ${sn.mins}m</b>`:'')+`</span>
+            <span class="glabel" style="left:calc(${l}% + ${wide?0:Math.max(w,0.6)}%);padding-left:${wide?0:8}px">`+
+              (wide?'':`${esc(sn.project)} · ${sn.mins}m — ${esc(sn.prompt)}`)+`</span>
+          </div>`;
+        }).join('')+
+      `</div>
+      <div class="gaxis">`+ ticks.map(m=>
+        `<span style="position:absolute;left:${pctOf(m)}%">${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}</span>`
+      ).join('') + `<span>&nbsp;</span></div>
+
+      <h2>By project</h2>`+
+      d.projects.map(pr=>bar(pr.project, Math.round(pr.mins/Math.max(...d.projects.map(x=>x.mins),1)*100),
+                             `${pr.mins}m · ${pr.count}×`, hue(pr.project), false)).join('')+
+      // Named rather than silently dropped: a view that quietly hides rows is worse than
+      // one that says what it set aside and why.
+      ((d.automation||[]).length
+        ? `<h2>Set aside as automation <span>— repeated short runs, not you working</span></h2>`+
+          d.automation.map(j=>`<div class="rart"><span class="rt">${esc(j.prompt)}…</span>`+
+            `<span class="rc">${j.runs}× · ${j.mins}m</span></div>`).join('')
+        : '');
   }
 
   if (view==='friction'){
@@ -431,16 +581,27 @@ async function renderPane(){
       `<div class="none">Nothing recurring across ${d.days||21} days.<br>Friction needs a couple of weeks before patterns show.</div>`;
     const LABEL={auth:'Signing in again', search:'Searching for the same thing',
                  pingpong:'Pulled away and straight back', boomerang:'Navigating there again'};
+    const maxCost = Math.max(...d.findings.map(f=>f.estMinPerWeek||0), 1);
     pane.innerHTML =
-      `<div class="fh"><div class="v">~${d.estMinPerWeek} min a week</div>`+
-      `<div class="n">${d.findings.length} recurring frictions across ${d.days} days and ${d.visits.toLocaleString()} page visits.</div>`+
-      `<div class="c">${esc(d.note||'')}</div></div>`+
+      `<p class="lede"><span class="big">~${d.estMinPerWeek}m</span> a week lost to <b>${d.findings.length}</b> `+
+      `recurring frictions, found across ${d.days} days and ${d.visits.toLocaleString()} page visits.</p>
+       <div class="span">${esc(d.note||'')}</div>`+
       ['auth','search','pingpong','boomerang'].filter(k=>d.findings.some(f=>f.kind===k)).map(k=>
         `<h2>${esc(LABEL[k]||k)}</h2>`+
         d.findings.filter(f=>f.kind===k).map(f=>
-          `<div class="f"><div class="ft">${esc(f.title)}</div>`+
-          `<div class="fd">${esc(f.detail)}</div>`+
-          `<div class="ff"><em>FIX</em>${esc(f.fix)}</div></div>`).join('')
+          `<div class="fitem">
+             <div>
+               <div class="ft">${esc(f.title)}</div>
+               <div class="fd">${esc(f.detail)}</div>
+               <div class="ff"><em>FIX</em>${esc(f.fix)}</div>
+             </div>
+             <div class="fcost">`+
+               (f.estMinPerWeek
+                 ? `<div class="n">${f.estMinPerWeek}</div><div class="u">min / week</div>
+                    <div class="tr"><i style="width:${Math.round(f.estMinPerWeek/maxCost*100)}%"></i></div>`
+                 : `<div class="u">no time cost —<br>just friction</div>`)+
+             `</div>
+           </div>`).join('')
       ).join('');
   }
 }
@@ -452,8 +613,13 @@ document.getElementById('tabs').onclick = e => {
   renderPane();
 };
 document.getElementById('q').oninput  = () => render();
-document.getElementById('date').onchange = e => load(e.target.value);
-load();
+document.getElementById('date').onchange = e => {
+  load(e.target.value);
+  // Keep the URL pointing at the day being read, so a day can be linked or reloaded.
+  const u = new URL(location); u.searchParams.set('date', e.target.value);
+  history.replaceState(null, '', u);
+};
+load(new URLSearchParams(location.search).get('date') || undefined);
 </script>
 </body>
 </html>
