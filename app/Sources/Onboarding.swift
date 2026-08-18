@@ -42,6 +42,7 @@ final class OnboardingModel: ObservableObject {
     @Published var summarizer: String = "local"
     @Published var startAtLogin: Bool = true
     @Published var captureBrowsers: Bool = true
+    @Published var backfill: Bool = true
     lazy var browsers: [String] = Store.installedBrowsers()
     private var poll: Timer?
 
@@ -60,7 +61,8 @@ final class OnboardingModel: ObservableObject {
     func finish() {
         Store.ensure()
         Store.write(["summarizer": summarizer, "onboardedAt": Store.stamp(),
-                     "startAtLogin": startAtLogin, "captureBrowsers": captureBrowsers])
+                     "startAtLogin": startAtLogin, "captureBrowsers": captureBrowsers,
+                     "sources": ["browser": captureBrowsers, "claudeCode": true]])
         applyLoginItem()
         stopWatching()
     }
@@ -515,8 +517,21 @@ struct OnboardingView: View {
             .background(RoundedRectangle(cornerRadius: 9).fill(Color(nsColor: .controlBackgroundColor)))
             .padding(.top, 20)
 
+            // The cold start is the real retention problem: threads and comparisons need
+            // weeks, so a fresh install is least impressive exactly when someone decides
+            // whether to keep it. The browser has months of history already and reading it
+            // costs no permission, so day one can show a populated product.
+            if model.captureBrowsers {
+                VStack(alignment: .leading, spacing: 3) {
+                    Toggle("Fill in the last 60 days from my browser history", isOn: $model.backfill)
+                        .font(.system(size: 12.5))
+                    Text("Runs once in the background. Without it, My Day has nothing to show until you have used it for a couple of weeks.")
+                        .font(.system(size: 11)).foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true).padding(.leading, 21)
+                }.padding(.top, 14)
+            }
             Toggle("Start My Day when I log in", isOn: $model.startAtLogin)
-                .font(.system(size: 12.5)).padding(.top, 16)
+                .font(.system(size: 12.5)).padding(.top, 10)
         }
     }
 

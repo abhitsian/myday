@@ -159,10 +159,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, WKNavi
     private func showOnboarding() {
         let model = OnboardingModel()
         let view = OnboardingView(model: model) { [weak self] in
+            let wantsBackfill = model.backfill && model.captureBrowsers
             self?.onboardingWindow?.close()
             self?.onboardingWindow = nil
             self?.beginRecording()
             self?.showDay()
+            if wantsBackfill {
+                // Off the main thread and after the window is up, so the first thing seen is
+                // the app rather than a spinner. Notes appear underneath as it works.
+                DispatchQueue.global(qos: .utility).async { Node.run(["backfill", "--days", "60"]) }
+            }
         }
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 480),
                          styleMask: [.titled, .closable],

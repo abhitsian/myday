@@ -255,6 +255,20 @@ h2 span{font-weight:400;color:var(--faint)}
 .fcost .tr i{display:block;height:100%;background:var(--s2);border-radius:3px}
 @media(max-width:640px){.fitem{grid-template-columns:1fr}.fcost{text-align:left}}
 
+/* A session is a different kind of event from a note: it has an id you can return to. */
+.e.sess .edot{border-color:var(--s7);background:var(--bg)}
+.e.sess .emain{border-left:2px solid color-mix(in oklab,var(--s7) 35%,transparent);
+  padding-left:12px;margin-left:-2px}
+.sesshead{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.sesstag{font-family:var(--num);font-size:var(--t-xs);color:var(--s7);
+  background:color-mix(in oklab,var(--s7) 12%,transparent);border-radius:5px;padding:2px 7px}
+.sessmeta{font-family:var(--num);font-size:var(--t-xs);color:var(--faint)}
+.resume{display:inline-flex;align-items:center;gap:7px;margin-top:9px;padding:6px 10px;
+  background:var(--sunk);border:1px solid var(--line);border-radius:8px;
+  font-family:var(--num);font-size:var(--t-xs);color:var(--mut);cursor:pointer}
+.resume:hover{border-color:var(--s7);color:var(--ink)}
+.resume b{font-weight:500;color:var(--ink)}
+
 /* ── browse / sessions ──────────────────────────────────────────────────── */
 .bl{display:flex;gap:14px;padding:10px 0;border-bottom:1px solid var(--line)}
 .bl:last-child{border-bottom:none}
@@ -321,6 +335,8 @@ const durm = s => {
   return m >= 60 ? `${Math.floor(m/60)}h ${String(m%60).padStart(2,'0')}m` : `${m}m`;
 };
 let D = null, view = 'home', open = new Set();
+const t12 = t => { const [h,m]=String(t).split(':').map(Number);
+  return `${h%12===0?12:h%12}:${String(m).padStart(2,'0')} ${h<12?'AM':'PM'}`; };
 
 /* Eight fixed hues, never cycled, handed out in the order given. Callers pass apps ranked
    by total time over the WEEK, not by today's rank: ranking on the week keeps a colour
@@ -359,6 +375,25 @@ async function load(date){
 }
 
 /* ── Timeline ───────────────────────────────────────────────────────────── */
+// Sessions arrive from a second endpoint and are merged into the same rail: the day is one
+// sequence, and splitting "what I did" from "what I built" across two tabs makes you hold
+// the ordering in your head.
+let _sessions = [];
+async function loadSessions(){
+  try {
+    const d = await (await fetch(`/api/sessions?date=${D.date}`)).json();
+    _sessions = (d && d.available && d.sessions) ? d.sessions : [];
+  } catch { _sessions = []; }
+}
+
+function copyResume(el, id){
+  navigator.clipboard.writeText(`claude --resume ${id}`).then(()=>{
+    const was = el.querySelector('b').textContent;
+    el.querySelector('b').textContent = 'copied';
+    setTimeout(()=>{ el.querySelector('b').textContent = was; }, 1400);
+  }).catch(()=>{});
+}
+
 function render(){
   const q = document.getElementById('q').value.trim().toLowerCase();
   const list = D.entries.filter(e => !q ||
@@ -369,11 +404,52 @@ function render(){
       : 'No notes yet for this day.<br>My Day writes one every ten minutes while you work.'}</div>`;
     return;
   }
-  const t12 = t => { const [h,m]=t.split(':').map(Number);
-    return `${h%12===0?12:h%12}:${String(m).padStart(2,'0')} ${h<12?'AM':'PM'}`; };
   const now = new Date(), nowSlot = now.getHours()*60 + Math.floor(now.getMinutes()/10)*10;
+  const mins = t => { const [h,m]=t.split(':').map(Number); return h*60+m; };
 
-  el.innerHTML = list.map(e=>{
+  // One chronological rail: notes and sessions interleaved by start time.
+  const events = [
+    ...list.map(e=>({kind:'note', at:mins(e.start), e})),
+    ..._sessions.filter(sn=>!q ||
+        `${sn.title} ${sn.project} ${sn.prompt}`.toLowerCase().includes(q))
+      .map(sn=>({kind:'sess', at:mins(sn.start), sn})),
+  ].sort((a,b)=>a.at-b.at);
+
+  el.innerHTML = events.map(ev=>{
+    if (ev.kind==='sess'){
+      const sn = ev.sn;
+      return `<div class="e sess">
+        <div class="etime">${t12(sn.start)}</div>
+        <div class="erail"><span class="edot"></span></div>
+        <div class="emain">
+          <div class="sesshead">
+            <span class="sesstag">Claude Code</span>
+            <span class="sessmeta">${esc(sn.project)} · ${sn.mins}m · ${sn.turns} turns</span>
+          </div>
+          <div class="eti" style="cursor:default">${esc(sn.title)}</div>
+          ${sn.cwd?`<div class="sessmeta" style="margin-top:4px">${esc(sn.cwd.replace(/^\/Users\/[^/]+/,'~'))}</div>`:''}
+          <span class="resume" onclick="copyResume(this,'${esc(sn.sessionId)}')"
+                title="Copy the command that reopens this session">↩ <b>resume</b></span>
+        </div>
+      </div>`;
+    }
+    const e = ev.e;
+    return renderNote(e, nowSlot);
+  }).join('');
+
+  el.querySelectorAll('.eti[data-k]').forEach(t=>t.onclick=()=>{
+    const k=t.dataset.k; open.has(k)?open.delete(k):open.add(k); render();
+  });
+  el.querySelectorAll('.x').forEach(b=>b.onclick=async()=>{
+    await fetch('/api/delete',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({date:b.dataset.d,slot:b.dataset.s})});
+    load(D.date);
+  });
+  return;
+}
+
+function renderNote(e, nowSlot){
+  {
     const k=e.date+e.slot, o=open.has(k), [hh,mm]=e.start.split(':').map(Number);
     const live = e.date===D.date && (hh*60+mm)===nowSlot;
     const marks = e.apps.slice(0,5).map(a=>appIcon(a)).join('')
@@ -390,16 +466,7 @@ function render(){
       </div>
       <button class="x" data-d="${e.date}" data-s="${e.slot}" title="Forget this note" aria-label="Forget this note">×</button>
     </div>`;
-  }).join('');
-
-  el.querySelectorAll('.eti').forEach(t=>t.onclick=()=>{
-    const k=t.dataset.k; open.has(k)?open.delete(k):open.add(k); render();
-  });
-  el.querySelectorAll('.x').forEach(b=>b.onclick=async()=>{
-    await fetch('/api/delete',{method:'POST',headers:{'content-type':'application/json'},
-      body:JSON.stringify({date:b.dataset.d,slot:b.dataset.s})});
-    load(D.date);
-  });
+  }
 }
 
 const GLYPH = {target:'◎',shuffle:'⇄',clock:'◷',sun:'☀',chart:'▤',code:'⌘',globe:'◍',span:'⟷'};
@@ -414,7 +481,7 @@ async function renderPane(){
   list.style.display = view==='memories' ? '' : 'none';
   q.style.display    = view==='memories' ? '' : 'none';
   pane.style.display = view==='memories' ? 'none' : '';
-  if (view==='memories') return render();
+  if (view==='memories') { await loadSessions(); return render(); }
 
   pane.innerHTML = '<div class="none">Reading your day…</div>';
   const d = await (await fetch(`/api/${view}?date=${D.date}`)).json();

@@ -17,6 +17,7 @@ const R = require('../lib/rollup');
 const A = require('../lib/analytics');
 const FR = require('../lib/friction');
 const TH = require('../lib/threads');
+const SRC = require('../lib/sources');
 const I = require('../lib/icons');
 
 const PKG = require('../package.json');
@@ -283,6 +284,34 @@ function cmdSessions() {
   }
 }
 
+function cmdSources() {
+  if (!requireInit()) return;
+  const id = argv[1], onoff = argv[2];
+  if (id && onoff) {
+    if (!SRC.SOURCES.some((s) => s.id === id)) return say(`Unknown source "${id}".`);
+    SRC.setEnabled(id, /^(on|true|yes|1)$/i.test(onoff));
+  }
+  say('What My Day is allowed to look at\n');
+  for (const s of SRC.inventory()) {
+    const box = s.required ? '[always]' : s.enabled ? '[  on  ]' : '[  off ]';
+    say(`  ${box} ${s.name}${s.planned ? '   (not built yet)' : ''}`);
+    say(`           ${s.what}`);
+    say(`           ${s.available ? s.detail : 'not available: ' + s.detail} · permission: ${s.permission}`);
+    say('');
+  }
+  say('  myday sources <id> on|off      ' + SRC.SOURCES.filter((x)=>!x.required).map((x)=>x.id).join(' · '));
+}
+
+async function cmdBackfill() {
+  if (!requireInit()) return;
+  if (!SRC.isEnabled('browser')) return say('Browsing is switched off. `myday sources browser on` first.');
+  const days = Number(val('days', 60));
+  say(`Reconstructing notes from browsing, back ${days} days.`);
+  say('Only for days with no recorded samples — real capture is never overwritten.\n');
+  const r = await R.backfillFromBrowser({ days, log: (m) => say('  ' + m) });
+  say(`\n${r.written.length} notes written${r.skipped.length ? `, ${r.skipped.length} days skipped (already recorded)` : ''}.`);
+}
+
 function cmdThreads() {
   if (!requireInit()) return;
   const r = TH.build(Number(val('days', 21)));
@@ -427,6 +456,11 @@ function cmdView() {
       });
       res.writeHead(200, { 'content-type': 'application/json' }); return res.end(body);
     }
+    if (u.pathname === '/api/sources') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      return res.end(JSON.stringify({ sources: SRC.inventory() }));
+    }
+    if (u.pathname === '/api/sources' && req.method === 'POST') { /* handled below */ }
     if (u.pathname === '/api/threads') {
       let out; try { out = TH.build(Number(u.searchParams.get('days')) || 21); }
       catch (e) { out = { error: e.message, threads: [] }; }
@@ -451,6 +485,15 @@ function cmdView() {
       if (!p) { res.writeHead(404); return res.end(); }
       res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'max-age=86400' });
       return res.end(fs.readFileSync(p));
+    }
+    if (u.pathname === '/api/source' && req.method === 'POST') {
+      let b = ''; req.on('data', (c) => (b += c));
+      return req.on('end', () => {
+        try { const p = JSON.parse(b || '{}');
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ sources: SRC.setEnabled(p.id, p.on) }));
+        } catch { res.writeHead(400); res.end(); }
+      });
     }
     if (u.pathname === '/api/delete' && req.method === 'POST') {
       let b = ''; req.on('data', (c) => (b += c));
@@ -510,6 +553,8 @@ function cmdHelp() {
   apps [--week]        time per app, context switches, the shape of the day
   browse [--full]      what you read, clustered by site
   sessions             Claude Code sessions, with the prompt that started each
+  sources [id on|off]  what My Day is allowed to look at
+  backfill [--days 60] reconstruct past days from your browser history
   threads [--days 21]  the work that recurs, derived from your notes
   friction [--days 21] recurring costs: re-logins, repeat searches, bounce loops
   search <query>       across every memory
@@ -541,6 +586,8 @@ function cmdHelp() {
       case 'sessions': return cmdSessions();
       case 'friction': return cmdFriction();
       case 'threads': return cmdThreads();
+      case 'sources': return cmdSources();
+      case 'backfill': return await cmdBackfill();
       case 'search': return cmdSearch();
       case 'ask': return await cmdAsk();
       case 'view': return cmdView();
