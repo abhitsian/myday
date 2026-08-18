@@ -284,6 +284,65 @@ function cmdSessions() {
   }
 }
 
+// myday permissions                      show the rules
+// myday permissions apps include|exclude  switch mode
+// myday permissions apps +Slack           add to whichever list the mode uses
+// myday permissions sites -*bank*         remove
+function cmdPermissions() {
+  if (!requireInit()) return;
+  const kindArg = argv[1], op = argv[2];
+  const kind = kindArg === 'apps' ? 'app' : kindArg === 'sites' ? 'site' : null;
+
+  if (kind && op) {
+    if (op === 'include' || op === 'exclude') {
+      S.writeConfig({ [kind === 'app' ? 'appMode' : 'siteMode']: op });
+    } else if (/^[+-]/.test(op)) {
+      S.setRule(kind, op.slice(1), op[0] === '+');
+    } else return say('usage: myday permissions apps|sites include|exclude | +pattern | -pattern');
+  }
+
+  const c = S.readConfig();
+  for (const [label, k, mode, list] of [
+    ['Apps',     'app',  c.appMode  || 'exclude', (c.appMode  || 'exclude') === 'include' ? c.includeApps  : c.excludeApps],
+    ['Websites', 'site', c.siteMode || 'exclude', (c.siteMode || 'exclude') === 'include' ? c.includeSites : c.excludeSites],
+  ]) {
+    say(`${label} — ${mode === 'include' ? 'include only these' : 'exclude these'}`);
+    if (!(list || []).length) {
+      say(mode === 'include'
+        ? '  (empty — nothing is being recorded from this source)'
+        : '  (empty — everything is recorded)');
+    } else for (const p of list) say('  ' + p);
+    say('');
+  }
+  if ((c.excludeTitlePatterns || []).length) {
+    say('Window titles blanked (the time still records)');
+    for (const p of c.excludeTitlePatterns) say('  ' + p);
+    say('');
+  }
+  say('Private browsing is never included — browsers do not record it.');
+}
+
+async function cmdClear() {
+  if (!requireInit()) return;
+  const what = argv[1];
+  const WINDOWS = { '10m': 10, 'hour': 60, 'day': 1440 };
+  let r, label;
+  if (what === 'all') {
+    const a = await ask('Delete every note and every raw sample? Type "clear all": ');
+    if (a.toLowerCase() !== 'clear all') return say('Nothing removed.');
+    r = S.clearAll(); label = 'everything';
+  } else if (WINDOWS[what]) {
+    r = S.clearSince(Date.now() - WINDOWS[what] * 60000);
+    label = what === '10m' ? 'the last 10 minutes' : `the last ${what}`;
+  } else if (what === 'app' && argv[2]) {
+    r = S.clearApp(argv.slice(2).join(' ')); label = `everything from ${argv.slice(2).join(' ')}`;
+  } else {
+    return say('usage: myday clear 10m | hour | day | all | app <name>');
+  }
+  say(`Cleared ${label}: ${r.notes} note${r.notes===1?'':'s'} and ${r.samples} raw sample${r.samples===1?'':'s'}.`);
+  say('The events behind those notes are gone too, so a rollup will not rewrite them.');
+}
+
 function cmdSources() {
   if (!requireInit()) return;
   const id = argv[1], onoff = argv[2];
@@ -456,6 +515,43 @@ function cmdView() {
       });
       res.writeHead(200, { 'content-type': 'application/json' }); return res.end(body);
     }
+    if (u.pathname === '/api/permissions') {
+      const c = S.readConfig();
+      res.writeHead(200, { 'content-type': 'application/json' });
+      return res.end(JSON.stringify({
+        appMode: c.appMode || 'exclude', excludeApps: c.excludeApps || [], includeApps: c.includeApps || [],
+        siteMode: c.siteMode || 'exclude', excludeSites: c.excludeSites || [], includeSites: c.includeSites || [],
+        excludeTitlePatterns: c.excludeTitlePatterns || [], paused: !!c.paused,
+      }));
+    }
+    if (u.pathname === '/api/permission' && req.method === 'POST') {
+      let b = ''; req.on('data', (c) => (b += c));
+      return req.on('end', () => {
+        try {
+          const p = JSON.parse(b || '{}');
+          if (p.mode) S.writeConfig({ [p.kind === 'app' ? 'appMode' : 'siteMode']: p.mode });
+          else if (p.value !== undefined) S.setRule(p.kind, p.value, !!p.on);
+          else if (p.paused !== undefined) S.writeConfig({ paused: !!p.paused });
+          const c = S.readConfig();
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ ok: true, config: c }));
+        } catch (e) { res.writeHead(400); res.end(JSON.stringify({ error: e.message })); }
+      });
+    }
+    if (u.pathname === '/api/clear' && req.method === 'POST') {
+      let b = ''; req.on('data', (c) => (b += c));
+      return req.on('end', () => {
+        try {
+          const p = JSON.parse(b || '{}');
+          const W = { '10m': 10, hour: 60, day: 1440 };
+          const r = p.what === 'all' ? S.clearAll()
+                  : p.what === 'app' ? S.clearApp(p.app)
+                  : W[p.what] ? S.clearSince(Date.now() - W[p.what] * 60000)
+                  : { notes: 0, samples: 0 };
+          res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify(r));
+        } catch { res.writeHead(400); res.end(); }
+      });
+    }
     if (u.pathname === '/api/sources') {
       res.writeHead(200, { 'content-type': 'application/json' });
       return res.end(JSON.stringify({ sources: SRC.inventory() }));
@@ -554,6 +650,8 @@ function cmdHelp() {
   browse [--full]      what you read, clustered by site
   sessions             Claude Code sessions, with the prompt that started each
   sources [id on|off]  what My Day is allowed to look at
+  permissions          which apps and websites contribute; include-only or exclude
+  clear 10m|hour|day|all|app <name>   delete history and the events behind it
   backfill [--days 60] reconstruct past days from your browser history
   threads [--days 21]  the work that recurs, derived from your notes
   friction [--days 21] recurring costs: re-logins, repeat searches, bounce loops
@@ -587,6 +685,8 @@ function cmdHelp() {
       case 'friction': return cmdFriction();
       case 'threads': return cmdThreads();
       case 'sources': return cmdSources();
+      case 'permissions': return cmdPermissions();
+      case 'clear': return await cmdClear();
       case 'backfill': return await cmdBackfill();
       case 'search': return cmdSearch();
       case 'ask': return await cmdAsk();

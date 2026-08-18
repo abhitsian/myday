@@ -219,6 +219,36 @@ h2 span{font-weight:400;color:var(--faint)}
 .rart a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
 .rart .rc{font-family:var(--num);font-size:var(--t-xs);color:var(--faint);flex:none}
 
+/* ── Permissions: the switches, next to the thing they switch. ─────────────────────── */
+.pgroup{padding:18px 0;border-bottom:1px solid var(--line)}
+.pgroup:last-of-type{border-bottom:none}
+.phead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+.phead h2{margin:0}
+.pmode{display:flex;gap:2px;background:var(--sunk);border-radius:8px;padding:2px}
+.pmode button{background:none;border:none;border-radius:6px;padding:5px 11px;
+  font-size:var(--t-xs);color:var(--mut);cursor:pointer}
+.pmode button.on{background:var(--card);color:var(--ink);font-weight:600;
+  box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.pnote{color:var(--faint);font-size:var(--t-xs);margin:2px 0 12px;line-height:1.6}
+.rules{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.rule{display:inline-flex;align-items:center;gap:7px;background:var(--sunk);
+  border:1px solid var(--line);border-radius:7px;padding:4px 8px;font-family:var(--num);font-size:var(--t-xs)}
+.rule button{background:none;border:none;color:var(--faint);cursor:pointer;font-size:13px;line-height:1;padding:0}
+.rule button:hover{color:var(--s8)}
+.addrule{display:flex;gap:7px}
+.addrule input{flex:1;max-width:320px;background:var(--card);border:1px solid var(--line);
+  border-radius:8px;padding:7px 11px;font-family:var(--num);font-size:var(--t-xs);color:var(--ink);outline:none}
+.addrule input:focus{border-color:var(--mut)}
+.addrule button{background:var(--sunk);border:1px solid var(--line);border-radius:8px;
+  padding:7px 13px;font-size:var(--t-xs);color:var(--ink);cursor:pointer}
+.addrule button:hover{border-color:var(--mut)}
+.empty-allow{color:var(--warn);font-size:var(--t-xs);margin-bottom:10px}
+.clearbar{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.clearbar button{background:var(--card);border:1px solid var(--line);border-radius:8px;
+  padding:7px 13px;font-size:var(--t-xs);color:var(--ink);cursor:pointer}
+.clearbar button:hover{border-color:var(--s8);color:var(--s8)}
+.clearbar button.danger{color:var(--s8)}
+
 /* ── Threads: the work, not the software. State is the reason to look, so it leads. ── */
 .thread{display:grid;grid-template-columns:76px 1fr;gap:16px;padding:15px 0;border-bottom:1px solid var(--line)}
 .tstate{font-family:var(--num);font-size:var(--t-xs);padding-top:3px}
@@ -313,6 +343,7 @@ footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);
     <button class="tab" data-v="sessions">Building</button>
     <button class="tab" data-v="threads">Threads</button>
     <button class="tab" data-v="friction">Friction</button>
+    <button class="tab" data-v="permissions">Permissions</button>
   </div>
 
   <div id="warn"></div>
@@ -352,6 +383,17 @@ function assignHues(rankedNames){
 const hue = n => _slots.get(n) || 'var(--faint)';
 const appIcon = (a,sz) => `<img src="/api/icon/${encodeURIComponent(a)}" alt="" title="${esc(a)}" loading="lazy"
   ${sz?`style="width:${sz}px;height:${sz}px"`:''} onerror="this.style.display='none'">`;
+/// An icon in the timeline is the fastest place to say "not this one, ever again" — you are
+/// looking at the evidence when you decide.
+async function excludeApp(app){
+  if (!confirm(`Stop recording ${app}?\n\nFuture history will leave it out. What is already recorded stays until you clear it.`)) return;
+  await fetch('/api/permission',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({kind:'app', value:app, on:true})});
+  load(D.date);
+}
+const appIconClickable = (a) => `<img src="/api/icon/${encodeURIComponent(a)}" alt="${esc(a)}"
+  title="${esc(a)} — click to stop recording it" loading="lazy" style="cursor:pointer"
+  onclick="excludeApp(${JSON.stringify(a)})" onerror="this.style.display='none'">`;
 
 async function load(date){
   D = await (await fetch('/api/day' + (date ? '?date='+date : ''))).json();
@@ -452,7 +494,7 @@ function renderNote(e, nowSlot){
   {
     const k=e.date+e.slot, o=open.has(k), [hh,mm]=e.start.split(':').map(Number);
     const live = e.date===D.date && (hh*60+mm)===nowSlot;
-    const marks = e.apps.slice(0,5).map(a=>appIcon(a)).join('')
+    const marks = e.apps.slice(0,5).map(a=>appIconClickable(a)).join('')
       + e.sites.slice(0,3).map(x=>`<span class="chip">${esc(x)}</span>`).join('')
       + (e.project?`<span class="chip">${esc(e.project)}</span>`:'');
     return `<div class="e ${live?'now':''}">
@@ -709,6 +751,78 @@ async function renderPane(){
           </div>
         </div>`;
       }).join('');
+  }
+
+  if (view==='permissions'){
+    const P = await (await fetch('/api/permissions')).json();
+    const group = (label, kind, mode, list, placeholder, help) => {
+      const inc = mode === 'include';
+      return `<div class="pgroup">
+        <div class="phead"><h2>${label}</h2>
+          <span class="pmode">
+            <button class="${inc?'':'on'}" data-mode="exclude" data-kind="${kind}">Exclude these</button>
+            <button class="${inc?'on':''}" data-mode="include" data-kind="${kind}">Include only these</button>
+          </span>
+        </div>
+        <div class="pnote">${help}</div>
+        ${inc && !list.length ? `<div class="empty-allow">Nothing is being recorded — an include-only list that is empty allows nothing.</div>` : ''}
+        <div class="rules">`+
+          (list.length ? list.map(v=>`<span class="rule">${esc(v)}<button data-del="${esc(v)}" data-kind="${kind}" title="Remove">×</button></span>`).join('')
+                       : `<span class="pnote">${inc?'':'Nothing excluded — everything is recorded.'}</span>`)+
+        `</div>
+        <div class="addrule">
+          <input data-add="${kind}" placeholder="${placeholder}" autocomplete="off">
+          <button data-addbtn="${kind}">Add</button>
+        </div>
+      </div>`;
+    };
+
+    pane.innerHTML =
+      `<p class="lede">You choose what contributes. Rules apply to <b>future</b> history — to remove what is already recorded, clear it below.</p>`+
+      `<div class="pgroup">
+         <div class="phead"><h2>Collection</h2></div>
+         <div class="pnote">${P.paused ? 'Paused. Nothing is being recorded.' : 'Recording. A note is written every ten minutes you are at the machine.'}</div>
+         <div class="clearbar"><button id="pPause">${P.paused?'Resume recording':'Pause recording'}</button></div>
+       </div>`+
+      group('Apps', 'app', P.appMode, P.appMode==='include'?P.includeApps:P.excludeApps,
+            'App name, or a pattern like 1Password*',
+            'Matching is case-insensitive; <code>*</code> is a wildcard. Applied before anything is written, so a blocked app never reaches disk.')+
+      group('Websites', 'site', P.siteMode, P.siteMode==='include'?P.includeSites:P.excludeSites,
+            'Domain, or a pattern like *bank*',
+            'Private browsing is never included — your browser does not record it, so My Day cannot read it.')+
+      `<div class="pgroup">
+         <div class="phead"><h2>Clear history</h2></div>
+         <div class="pnote">Deletes the notes and the raw events behind them, so a rollup cannot rewrite what you cleared. This cannot be undone.</div>
+         <div class="clearbar">
+           <button data-clear="10m">Last 10 minutes</button>
+           <button data-clear="hour">Last hour</button>
+           <button data-clear="day">Last day</button>
+           <button data-clear="all" class="danger">Everything</button>
+         </div>
+       </div>`;
+
+    const post = async (body) => { await fetch('/api/permission',{method:'POST',
+      headers:{'content-type':'application/json'},body:JSON.stringify(body)}); renderPane(); };
+
+    pane.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>post({kind:b.dataset.kind, mode:b.dataset.mode}));
+    pane.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>post({kind:b.dataset.kind, value:b.dataset.del, on:false}));
+    pane.querySelectorAll('[data-addbtn]').forEach(b=>b.onclick=()=>{
+      const inp = pane.querySelector(`[data-add="${b.dataset.addbtn}"]`);
+      if (inp.value.trim()) post({kind:b.dataset.addbtn, value:inp.value.trim(), on:true});
+    });
+    pane.querySelectorAll('[data-add]').forEach(i=>i.onkeydown=e=>{
+      if (e.key==='Enter' && i.value.trim()) post({kind:i.dataset.add, value:i.value.trim(), on:true});
+    });
+    const pp = pane.querySelector('#pPause');
+    if (pp) pp.onclick = () => post({paused: !P.paused});
+    pane.querySelectorAll('[data-clear]').forEach(b=>b.onclick=async()=>{
+      const w = b.dataset.clear;
+      if (w==='all' && !confirm('Delete every note and every raw sample? This cannot be undone.')) return;
+      const r = await (await fetch('/api/clear',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({what:w})})).json();
+      b.textContent = `${r.notes} notes, ${r.samples} samples cleared`;
+      setTimeout(()=>load(D.date), 1200);
+    });
   }
 
   if (view==='friction'){

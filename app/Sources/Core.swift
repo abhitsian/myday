@@ -56,6 +56,10 @@ enum Store {
         "excludeApps": ["1Password", "Passwords", "Keychain Access", "Bitwarden", "LastPass", "Dashlane", "Authenticator", "Tor Browser"],
         "excludeSites": ["*password*", "*bank*", "accounts.google.com", "login.microsoftonline.com", "*.onlinebanking.*", "health.*", "*medical*"],
         "excludeTitlePatterns": [String](),
+        "appMode": "exclude",
+        "includeApps": [String](),
+        "siteMode": "exclude",
+        "includeSites": [String](),
         "captureTitles": true,
         "captureBrowsers": true,
         "browsers": ["Chrome", "Brave", "Edge", "Arc", "Vivaldi"],
@@ -136,6 +140,19 @@ enum Store {
         return found
     }
 
+    /// The same decision the Node side makes, kept deliberately identical. The sampler runs
+    /// in this process, so if these two disagree the app records what the settings forbid.
+    static func allows(_ kind: String, _ value: String, _ c: [String: Any] = config()) -> Bool {
+        let mode = (c[kind == "app" ? "appMode" : "siteMode"] as? String) ?? "exclude"
+        let deny = (c[kind == "app" ? "excludeApps" : "excludeSites"] as? [String]) ?? []
+        let allow = (c[kind == "app" ? "includeApps" : "includeSites"] as? [String]) ?? []
+        if mode == "include" {
+            // Empty allow-list in include mode records nothing. That is what the setting says.
+            return allow.contains { matches(value, $0) }
+        }
+        return !deny.contains { matches(value, $0) }
+    }
+
     static func matches(_ value: String, _ pattern: String) -> Bool {
         let v = value.lowercased(), p = pattern.trimmingCharacters(in: .whitespaces).lowercased()
         if v.isEmpty || p.isEmpty { return false }
@@ -211,10 +228,9 @@ final class Sampler {
         guard let app = NSWorkspace.shared.frontmostApplication else { return }
         let name = app.localizedName ?? app.bundleIdentifier ?? "unknown"
 
-        // Exclusions are applied before anything is written, so an excluded app never
-        // reaches disk and there is no later filtering step that can be got wrong.
-        let excluded = (cfg["excludeApps"] as? [String]) ?? []
-        if excluded.contains(where: { Store.matches(name, $0) }) { return }
+        // Applied before anything is written, so a blocked app never reaches disk and there
+        // is no later filtering step that can be got wrong.
+        if !Store.allows("app", name, cfg) { return }
 
         var title = ""
         if (cfg["captureTitles"] as? Bool) != false, Sampler.isTrusted {
