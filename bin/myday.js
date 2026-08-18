@@ -129,8 +129,27 @@ function plistBody() {
 `;
 }
 
+// The Mac app samples on its own timer. A launchd daemon doing the same thing writes a
+// second reading of every instant into the same file, and the README offers both routes
+// without saying they are alternatives.
+function macAppRunning() {
+  try {
+    execSync('pgrep -f "My Day.app/Contents/MacOS/MyDay"', { stdio: ['ignore', 'pipe', 'ignore'] });
+    return true;
+  } catch { return false; }
+}
+
 function cmdStart() {
   if (!S.initialized()) return say('Run `myday init` first.');
+  if (macAppRunning() && !flag('anyway')) {
+    say('The My Day app is running, and it is already recording.');
+    say('Two recorders write the same file twice over, so this would not add anything.');
+    say('');
+    say('  Quit the app from its menu bar icon, then run this again,');
+    say('  or use the app on its own — the CLI reads the same history either way.');
+    say('  `myday start --anyway` if you know you want both.');
+    return;
+  }
   S.ensure();
   fs.mkdirSync(path.dirname(PLIST), { recursive: true });
   fs.writeFileSync(PLIST, plistBody());
@@ -142,7 +161,12 @@ function cmdStart() {
 
 function cmdStop() {
   try { execSync(`launchctl unload ${JSON.stringify(PLIST)} 2>/dev/null`); } catch {}
-  say('Stopped. Files kept — `myday uninstall` removes them.');
+  // Unloading is not stopping. launchd loads everything in ~/Library/LaunchAgents at login,
+  // and this plist carries RunAtLoad, so leaving the file behind meant recording quietly
+  // resumed at the next restart after someone had been told it stopped.
+  try { fs.unlinkSync(PLIST); } catch {}
+  say('Stopped, and it will stay stopped after a restart.');
+  say('Files kept — `myday uninstall` removes them.');
 }
 
 // ---------------------------------------------------------------- status
@@ -391,7 +415,7 @@ function cmdThreads() {
   const r = TH.build(days(val('days'), 7));
   if (!r.threads.length) return say(`No recurring work found in ${r.notesConsidered} notes. Threads need a few days of history.`);
   const STATE = { today:'today', active:'yesterday', warm:'a few days ago', quiet:'' };
-  say(`${r.threads.length} threads from ${r.notesConsidered} notes · ${r.unclustered} one-offs\n`);
+  say(`${r.threads.length} thread${r.threads.length === 1 ? '' : 's'} from ${r.notesConsidered} notes · ${r.unclustered} one-off${r.unclustered === 1 ? '' : 's'}\n`);
   for (const t of r.threads) {
     const age = t.state==='quiet' ? `quiet ${t.idleDays} days` : STATE[t.state];
     say(`  ${t.name}`);

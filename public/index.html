@@ -754,7 +754,7 @@ async function renderPane(){
     const LABEL={today:'today',active:'yesterday',warm:'this week',quiet:'quiet'};
 
     pane.innerHTML =
-      `<p class="lede"><span class="big">${d.threads.length}</span> threads running, `+
+      `<p class="lede"><span class="big">${d.threads.length}</span> thread${d.threads.length===1?'':'s'} running, `+
       `<b>${est.length}</b> of them across more than one day. `+
       `${d.unclustered} note${d.unclustered===1?'':'s'} didn't belong to any.</p>`+
       ((d.openLoops||[]).length
