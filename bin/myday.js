@@ -637,6 +637,20 @@ function cmdView() {
     // The Mac app hosts this in its own window and passes --no-open, so the browser does
     // not also launch a duplicate tab.
     if (!flag('no-open')) { try { execFileSync('open', [`http://localhost:${port}`]); } catch {} }
+
+    // The Mac app terminates this child when it quits cleanly. A crash or a force-quit never
+    // reaches that code, and the orphan keeps a port bound and the store open for as long as
+    // the machine stays up. Watching for the parent to disappear closes that case too.
+    if (flag('exit-with-parent')) {
+      const parent = process.ppid;
+      setInterval(() => {
+        // Signal 0 tests for existence without delivering anything. Reparenting to launchd
+        // (ppid 1) is the other way a parent's death shows up.
+        let gone = process.ppid !== parent;
+        if (!gone) { try { process.kill(parent, 0); } catch { gone = true; } }
+        if (gone) process.exit(0);
+      }, 5000).unref();
+    }
   });
 }
 

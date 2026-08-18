@@ -300,7 +300,7 @@ enum Node {
         guard let node = binary, let cli = cli else { return nil }
         let t = Process()
         t.executableURL = URL(fileURLWithPath: node)
-        t.arguments = [cli, "view", "--port", String(port), "--no-open"]
+        t.arguments = [cli, "view", "--port", String(port), "--no-open", "--exit-with-parent"]
         t.standardOutput = Pipe(); t.standardError = Pipe()
         do { try t.run() } catch { return nil }
         return t
