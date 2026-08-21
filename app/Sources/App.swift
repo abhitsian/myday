@@ -220,7 +220,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, WKNavi
     }
 
     @objc private func showDay() {
-        if let w = dayWindow { NSApp.activate(ignoringOtherApps: true); w.makeKeyAndOrderFront(nil); return }
+        if let w = dayWindow {
+            // A menu-bar app's window lives for days. Bringing it forward without reloading
+            // meant reopening it showed the day it was first opened on, with the date picker
+            // still on that date and today missing from the list entirely.
+            (w.contentView as? WKWebView)?.reload()
+            NSApp.activate(ignoringOtherApps: true); w.makeKeyAndOrderFront(nil); return
+        }
 
         guard Node.binary != nil, Node.cli != nil else { return showNodeMissing() }
         if viewer == nil || !(viewer!.isRunning) {

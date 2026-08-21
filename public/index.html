@@ -90,7 +90,10 @@ select{background:var(--card);border:1px solid var(--line);border-radius:8px;pad
   background:radial-gradient(circle at 50% 40%, #fffdf2 0%, #ffe9a8 38%, #f9bf6a 72%, #f0a352 100%);
   filter:drop-shadow(0 0 46px rgba(255,214,142,.85));bottom:52px;transform:translateX(-50%)}
 /* The ridge. Bars are the silhouette, so the chart and the picture are one thing. */
-.ridge{position:absolute;inset:auto 0 0 0;height:100%;display:flex;align-items:flex-end;gap:2px;padding:0 3px}
+/* All four insets rather than height:100%. WebKit resolved the percentage height of this
+   absolutely-positioned box against nothing and collapsed the ridge to a few pixels, so the
+   bars rendered as stubs in the app while Chrome drew them correctly. */
+.ridge{position:absolute;inset:0;display:flex;align-items:flex-end;gap:2px;padding:0 3px}
 .hr{flex:1;display:flex;align-items:flex-end;height:100%;cursor:default}
 .hr i{display:block;width:100%;background:var(--ridge);border-radius:3px 3px 0 0;
   transform-origin:bottom;animation:rise .7s cubic-bezier(.16,1,.3,1) both}
@@ -944,6 +947,22 @@ document.getElementById('date').onchange = e => {
   const u = new URL(location); u.searchParams.set('date', e.target.value);
   history.replaceState(null, '', u);
 };
+// The window stays open for days, so the page has to notice that the day changed. Without
+// this it kept rendering whichever date it first loaded, even after midnight.
+const todayStr = () => { const d = new Date(), p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; };
+let loadedOn = todayStr();
+
+function refresh() {
+  // Someone who deliberately picked an older day stays on it. Only a page that was showing
+  // today follows the calendar forward.
+  if (D && D.date === loadedOn && todayStr() !== loadedOn) { loadedOn = todayStr(); load(undefined); }
+  else load(D ? D.date : undefined);
+}
+window.addEventListener('focus', refresh);
+// Notes land every ten minutes, so a window left open should show them without being touched.
+setInterval(() => { if (document.visibilityState === 'visible') refresh(); }, 5 * 60 * 1000);
+
 load(new URLSearchParams(location.search).get('date') || undefined);
 </script>
 </body>
