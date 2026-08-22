@@ -26,7 +26,13 @@ chk "nothing on disk before init"  "$(ls "$TF" 2>/dev/null | wc -l | tr -d ' ')"
 echo yes | node bin/myday.js init >/dev/null 2>&1
 chk "init creates the store"       "$(ls "$TF" | wc -l | tr -d ' ')" "3"
 
+# Both real sources are switched off. MYDAY_HOME redirects the store but not the corpora:
+# identifiers are read from ~/.claude/projects and the browser history regardless, so a
+# developer who happened to use Claude Code at 08:00 got extra features on the seeded notes,
+# which pulled them below the clustering threshold. The test then failed for a reason that
+# had nothing to do with the code.
 node bin/myday.js config captureBrowsers false >/dev/null 2>&1
+node bin/myday.js sources claudeCode off >/dev/null 2>&1
 
 # Three full windows, every sample written twice — the shape produced when the Mac app and
 # the launchd daemon both record.
@@ -73,6 +79,11 @@ const dur = (s) => { const m = Math.round(s / 60);
 console.log([35999, 3599, 86399].some((s) => /60m/.test(dur(s))) ? "bad" : "good");')" "good"
 
 # The identifier cache holds file paths and page keys, so it is part of what "clear" means.
+# A source has to be on for there to be a pass to cache: with everything off, forRange skips
+# both passes and writes nothing. Browsing goes back on here, after the clustering checks
+# above have run, so it cannot affect them. Past days are cached even when they hold no
+# visits, which is what makes this deterministic on a machine with no browser history.
+node bin/myday.js config captureBrowsers true >/dev/null 2>&1
 node -e "require('./lib/threads').build(7)" >/dev/null 2>&1
 chk "derived cache is written"     "$(ls "$TF/cache" 2>/dev/null | wc -l | tr -d ' ' | awk '{print ($1 > 0) ? "yes" : "no"}')" "yes"
 node bin/myday.js clear day >/dev/null 2>&1
