@@ -5,8 +5,8 @@
 
 **A private record of what you worked on, kept on your Mac.**
 
-It writes a short note every ten minutes. Weeks later you can ask it what you were doing —
-and so can your AI assistant.
+It writes a short note every ten minutes. Weeks later you can ask it what you were doing, and
+so can your AI assistant.
 
 </div>
 
@@ -53,7 +53,7 @@ Applications → **right-click the app and choose Open** the first time.
 
 That right-click is needed exactly once. My Day is signed ad-hoc rather than with a paid
 Apple certificate, so macOS asks you to confirm the first launch. Everything after that is a
-normal double-click. Nothing else to install — a Node runtime ships inside the app.
+normal double-click. Nothing else to install: a Node runtime ships inside the app.
 
 Five screens walk you through what it reads before it reads anything, and it lives in the menu
 bar from then on.
@@ -61,7 +61,7 @@ bar from then on.
 One consequence of the ad-hoc signature: macOS keys the Accessibility permission to the exact
 binary, so **updating the app clears it** and window titles stop being recorded until you grant
 it again. The menu bar says "Window titles off" when that has happened, and clicking it opens
-the right settings pane. Everything else keeps working meanwhile — app names and times need no
+the right settings pane. Everything else keeps working meanwhile. App names and times need no
 permission at all.
 
 <details>
@@ -80,12 +80,12 @@ myday start     # begins recording
 The CLI needs Node 18+, and `myday build-helper` compiles a small Swift program for window
 titles (that step wants Xcode Command Line Tools). The app needs neither.
 
-If you already use the app, skip `myday start` — every read command works against the same
+If you already use the app, skip `myday start`. Every read command works against the same
 history either way.
 
 </details>
 
-Removing it takes everything with it — "Delete Everything and Quit" in the menu bar, or
+Removing it takes everything with it: "Delete Everything and Quit" in the menu bar, or
 `myday uninstall`. Both remove every note, every raw event, and the settings; the app itself
 goes to the Trash the usual way.
 
@@ -104,20 +104,23 @@ flowchart LR
 Three sources feed it, and you switch each one on or off separately. Reading your browsing
 is a different decision from reading your terminal work, so they are different switches.
 
-### It works before you grant it anything
+### What it needs from you
 
-| Tier | Needs | You get |
-|------|-------|---------|
-| 1 | nothing at all | Which app was in front, and for how long |
-| 2 | nothing at all | Page titles and addresses, from your browser's own history |
-| 3 | Accessibility, one small binary | Window titles — the document, the chat, the folder |
+| What you get | What it needs |
+|---|---|
+| App names, time at the machine, page titles and addresses | No permission |
+| Window titles: the document, the chat, the folder | Accessibility |
 
-Most tools in this category want an invasive permission before they show you anything, so
-you have to trust them on a promise. Run tiers 1 and 2 for a week and read the output first.
+App names come from a question macOS answers for any app. Page titles and addresses come
+from the history file your browser already keeps. Neither one prompts.
 
-For tier 3, `myday build-helper` compiles a 60-line Swift program that reads two attributes
-and prints them. You grant Accessibility to that one binary rather than to `osascript`,
-which would hand the same power to every script on your machine.
+Window titles are the only part that asks for anything. Run without them for a week first.
+Notes still name the app and the pages you were on, which is enough to tell you whether the
+record is worth keeping.
+
+If you decide the titles are worth it, `myday build-helper` compiles a 60-line Swift program
+that reads two attributes and prints them. Accessibility goes to that binary. Granting it to
+`osascript` instead would give every script on your machine the same access.
 
 ---
 
@@ -136,7 +139,7 @@ A tracker tells you that you spent 1h55m in Slack, which is a fact about softwar
 tell you the checkout bug ran across four days and has been quiet since Tuesday, which is a
 fact about your work.
 
-Nothing is declared. There is no project field to fill in — threads are derived from the
+Nothing is declared. There is no project field to fill in. Threads are derived from the
 files you touched and the pages you opened. Each carries a state (today, yesterday, this
 week, quiet), and the ones you picked up and put down surface first.
 
@@ -144,7 +147,7 @@ week, quiet), and the ones you picked up and put down surface first.
 
 The costs your day hides from you, each with the evidence attached:
 
-- Signing in to the same host 29 times a week, which is a session-timeout setting rather than a habit
+- Signing in to the same host 29 times a week, which is what a short session timeout looks like from the outside
 - The same search typed on 13 separate days, because the answer never got saved anywhere
 - A page you navigate to most days and never bookmarked
 
@@ -155,20 +158,20 @@ The costs your day hides from you, each with the evidence attached:
 This is the part that changes how the tool feels. My Day ships an MCP server, so any
 assistant that speaks MCP can look up what you did without you re-explaining it.
 
-**Claude Code** — add to `~/.claude.json`:
+**Claude Code**, in `~/.claude.json`:
 
 ```jsonc
 { "mcpServers": { "myday": { "command": "myday-mcp" } } }
 ```
 
-**Cursor** — add to `.cursor/mcp.json`. **Windsurf, Zed, Continue** and anything else with
+**Cursor**, in `.cursor/mcp.json`. **Windsurf, Zed, Continue** and anything else with
 MCP support take the same two lines.
 
 Then, mid-task:
 
 > **You:** pick up where I left off
 >
-> **Claude:** You were tracing a double-fire in the webhook retry loop — you'd read Stripe's
+> **Claude:** You were tracing a double-fire in the webhook retry loop. You'd read Stripe's
 > idempotency docs and edited `retry.ts`, and `retry.test.ts` was still failing on the
 > duplicate-delivery case (2026-08-14 15:30).
 
@@ -195,16 +198,16 @@ The text-only decision is the good one, and My Day keeps it. Where the two part 
 |---|---|---|
 | Before you grant anything | nothing | app names, then full browsing detail |
 | Page detail | scraped from the window | read from the browser's own history |
-| Works with | ChatGPT | any MCP client — Claude Code, Cursor, Zed |
+| Works with | ChatGPT | any MCP client: Claude Code, Cursor, Zed |
 | Storage | local Markdown | local Markdown, and you pick the folder |
 | Recurring work | — | derived threads with a state per thread |
 | Recurring costs | — | friction, with the evidence attached |
 | Your own history | starts empty | reconstructed from months of browsing on day one |
 
-That last row matters more than it sounds. Threads need two or three weeks before they mean
-anything, so a fresh install has nothing to say at exactly the moment you decide whether to
-keep it. My Day reads the browsing history already on your disk and writes notes for the past
-sixty days, so the first screen you see is populated.
+Threads need two or three weeks before they mean anything, so a fresh install has nothing to
+say at exactly the moment you decide whether to keep it. My Day reads the browsing history
+already on your disk and writes notes for the past sixty days, so the first screen you see is
+populated.
 
 ## Privacy
 
