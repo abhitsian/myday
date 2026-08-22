@@ -25,9 +25,9 @@ project, the file, the thing you already tried, every single time.
 
 Your computer knew all of it and wrote none of it down.
 
-## What My Day does
+## What it writes
 
-Every ten minutes it writes one small Markdown file describing what you were doing:
+Every ten minutes, one small Markdown file:
 
 ```markdown
 ---
@@ -43,84 +43,12 @@ project: payments-api
 - Editing retry.ts, focused on the key-reuse path
 ```
 
-That is the whole storage format. No database, no account, no upload. You can `grep` it,
-edit it, or delete a file you would rather not keep.
+That is the whole storage format. About forty files a day. No database, no account, no
+upload. You can `grep` it, edit one, or delete a file you would rather not keep.
 
-## Install
-
-**[Download My Day.dmg](https://github.com/abhitsian/myday/releases/latest)** → drag it into
-Applications → **right-click the app and choose Open** the first time.
-
-That right-click is needed exactly once. My Day is signed ad-hoc rather than with a paid
-Apple certificate, so macOS asks you to confirm the first launch. Everything after that is a
-normal double-click. Nothing else to install: a Node runtime ships inside the app.
-
-Five screens walk you through what it reads before it reads anything, and it lives in the menu
-bar from then on.
-
-One consequence of the ad-hoc signature: macOS keys the Accessibility permission to the exact
-binary, so **updating the app clears it** and window titles stop being recorded until you grant
-it again. The menu bar says "Window titles off" when that has happened, and clicking it opens
-the right settings pane. Everything else keeps working meanwhile. App names and times need no
-permission at all.
-
-<details>
-<summary>Prefer the command line?</summary>
-
-The CLI is an alternative to the app, not a companion to it. Both record, and running both
-means two recorders writing the same file, so pick one. `myday start` checks whether the app is
-running and stops rather than doubling up.
-
-```sh
-npm install -g @abhitsian/myday
-myday init      # explains exactly what gets read, then asks
-myday start     # begins recording
-```
-
-The CLI needs Node 18+, and `myday build-helper` compiles a small Swift program for window
-titles (that step wants Xcode Command Line Tools). The app needs neither.
-
-If you already use the app, skip `myday start`. Every read command works against the same
-history either way.
-
-</details>
-
-Removing it takes everything with it: "Delete Everything and Quit" in the menu bar, or
-`myday uninstall`. Both remove every note, every raw event, and the settings; the app itself
-goes to the Trash the usual way.
-
-## How it works
-
-```mermaid
-flowchart LR
-    A["Every 15s<br/>which app is in front"] --> D
-    B["Your browser's own<br/>history database"] --> D
-    C["Claude Code<br/>session transcripts"] --> D
-    D["Every 10 minutes<br/>one Markdown note"] --> E["~/.myday/memories/"]
-    E --> F["The app<br/>timeline, threads, friction"]
-    E --> G["MCP server<br/>your AI assistant reads it"]
-```
-
-Three sources feed it, and you switch each one on or off separately. Reading your browsing
-is a different decision from reading your terminal work, so they are different switches.
-
-### What it needs from you
-
-| What you get | What it needs |
-|---|---|
-| App names, time at the machine, page titles and addresses | No permission |
-| Window titles: the document, the chat, the folder | Accessibility |
-
-App names come from a question macOS answers for any app. Page titles and addresses come
-from the history file your browser already keeps. Neither one prompts.
-
-Window titles are the only part that asks for anything. Run without them for a week first.
-Notes still name the app and the pages you were on, which is enough to tell you whether the
-record is worth keeping.
-
-If you decide the titles are worth it, `myday build-helper` compiles a 60-line Swift program
-that reads two attributes and prints them. Accessibility goes to that binary. Granting it to
-`osascript` instead would give every script on your machine the same access.
+Three sources feed it, each a separate switch: which app is in front, the pages your browser
+already recorded, and your Claude Code sessions. Reading your browsing is a different
+decision from reading your terminal work, so they are different switches.
 
 ---
 
@@ -128,35 +56,59 @@ that reads two attributes and prints them. Accessibility goes to that binary. Gr
 
 <img src="docs/screens/timeline.jpg" alt="The timeline: notes and Claude Code sessions on one rail">
 
-Your day in order, with real application icons and clickable page links. Claude Code sessions
-sit on the same rail, each with a **resume** button that copies the command to reopen it.
+Your day in order. Every note names the applications by their real icons and links the pages
+you actually opened, so a morning you half-remember becomes a list you can click through.
+
+Claude Code sessions sit on the same rail as everything else, because a session and the
+browsing around it are usually the same piece of work. Each one carries a **resume** button
+that copies the command to reopen that exact conversation.
+
+Filter the day by an app, a site, or a word, and the rail narrows to the slots that match.
 
 ## Threads
 
 <img src="docs/screens/threads.jpg" alt="Threads: work that recurs across days, with a per-day run strip">
 
-A tracker tells you that you spent 1h55m in Slack, which is a fact about software. Threads
-tell you the checkout bug ran across four days and has been quiet since Tuesday, which is a
-fact about your work.
+Time-per-app is a fact about software: you spent 1h55m in Slack. A thread is a fact about
+work: the checkout migration ran across six days and has been quiet for three.
 
-Nothing is declared. There is no project field to fill in. Threads are derived from the
-files you touched and the pages you opened. Each carries a state (today, yesterday, this
-week, quiet), and the ones you picked up and put down surface first.
+Nothing is declared. There is no project field to fill in, no tags, no setup step, because
+the people who would keep tags current do not need the tool.
+
+Getting there took two failed attempts, both instructive. Clustering on window titles looked
+rich and turned out to be the worst available signal: a terminal title reads the same for six
+hours, so its words bind every unrelated note in the day. Clustering on the summaries failed
+the opposite way, paraphrasing the specific thing away until two notes about the same customer
+never met.
+
+What works is identifiers. The file you edited, the repository you were in, the exact page,
+byte-identical every time you touch the same thing and absent when you do not. Features that
+turn up nearly everywhere get dropped, and a note has to resemble a cluster's centre rather
+than any single member, so one shared word cannot chain everything together.
+
+Each thread carries a state: today, yesterday, this week, quiet. The ones you picked up and
+put down surface first, because work you dropped is the reason to open the view.
 
 ## Friction
 
-The costs your day hides from you, each with the evidence attached:
+The costs a day hides from you, each one counted rather than asserted:
 
-- Signing in to the same host 29 times a week, which is what a short session timeout looks like from the outside
+- Signing in to the same host 29 times a week, which is what a short session timeout looks
+  like from the outside
 - The same search typed on 13 separate days, because the answer never got saved anywhere
 - A page you navigate to most days and never bookmarked
+- Two apps you bounce between in under two minutes, repeatedly, when one of them is a chat app
+
+Every finding shows how many times, across how many days, and what the evidence was. Nothing
+is inferred from a mood or a score. Time figures are labelled estimates where they are
+estimates, because a re-login is timed at roughly thirty seconds rather than measured.
 
 ---
 
 ## Your AI assistant can read it
 
-This is the part that changes how the tool feels. My Day ships an MCP server, so any
-assistant that speaks MCP can look up what you did without you re-explaining it.
+My Day ships an MCP server, so any assistant that speaks MCP can look up what you did instead
+of asking you.
 
 **Claude Code**, in `~/.claude.json`:
 
@@ -164,8 +116,8 @@ assistant that speaks MCP can look up what you did without you re-explaining it.
 { "mcpServers": { "myday": { "command": "myday-mcp" } } }
 ```
 
-**Cursor**, in `.cursor/mcp.json`. **Windsurf, Zed, Continue** and anything else with
-MCP support take the same two lines.
+**Cursor**, in `.cursor/mcp.json`. **Windsurf, Zed, Continue** and anything else with MCP
+support take the same two lines.
 
 Then, mid-task:
 
@@ -175,39 +127,56 @@ Then, mid-task:
 > idempotency docs and edited `retry.ts`, and `retry.test.ts` was still failing on the
 > duplicate-delivery case (2026-08-14 15:30).
 
-Four tools are exposed: `history_search`, `history_window`, `history_resume`, and
-`history_time_by`.
+Four tools: `history_search`, `history_window`, `history_resume`, `history_time_by`.
 
-Notes are built from web page titles and window titles, which are text other people control.
-A page titled *"ignore previous instructions"* would otherwise reach an assistant that can
-run commands. Every response comes back inside a fenced envelope with the brackets escaped,
-so the payload cannot break out of it, and the rule is restated on every single response.
+Notes are built from web page titles, which are text other people control. A page titled
+*"ignore previous instructions"* would otherwise reach an assistant that can run commands.
+Every response comes back inside a fenced envelope with the brackets escaped, so the payload
+cannot close it, and the rule is restated on every single response.
 
 ---
 
-## Where this came from
+## Install
 
-OpenAI shipped **Computer History** in the ChatGPT Mac app in August 2026: record interaction
-events rather than screenshots, roll them up every ten minutes into Markdown memory files,
-read those back when the user asks about past work. Windows Recall and Rewind had taken the
-screenshot route before it and spent their public lives defending that choice.
+**[Download My Day.dmg](https://github.com/abhitsian/myday/releases/latest)** → drag into
+Applications → **right-click and choose Open** the first time. Nothing else to install; a
+Node runtime ships inside the app. Five screens explain what it reads before it reads
+anything, and it lives in the menu bar from then on.
 
-The text-only decision is the good one, and My Day keeps it. Where the two part ways:
+Removing it takes everything with it: **Delete Everything and Quit** in the menu bar, or
+`myday uninstall`.
 
-| | ChatGPT Computer History | My Day |
-|---|---|---|
-| Before you grant anything | nothing | app names, then full browsing detail |
-| Page detail | scraped from the window | read from the browser's own history |
-| Works with | ChatGPT | any MCP client: Claude Code, Cursor, Zed |
-| Storage | local Markdown | local Markdown, and you pick the folder |
-| Recurring work | — | derived threads with a state per thread |
-| Recurring costs | — | friction, with the evidence attached |
-| Your own history | starts empty | reconstructed from months of browsing on day one |
+<details>
+<summary>Command line instead of the app</summary>
 
-Threads need two or three weeks before they mean anything, so a fresh install has nothing to
-say at exactly the moment you decide whether to keep it. My Day reads the browsing history
-already on your disk and writes notes for the past sixty days, so the first screen you see is
-populated.
+The CLI is an alternative to the app, not a companion. Both record, and running both means
+two recorders writing the same file, so pick one. `myday start` checks whether the app is
+running and stops rather than doubling up.
+
+```sh
+npm install -g @abhitsian/myday
+myday init      # explains exactly what gets read, then asks
+myday start     # begins recording
+```
+
+Needs Node 18+. `myday build-helper` compiles a small Swift program for window titles, which
+wants Xcode Command Line Tools. The app needs neither. If you already use the app, skip
+`myday start`; every read command works against the same history.
+
+</details>
+
+<details>
+<summary>Why the right-click, and why window titles stop after an update</summary>
+
+My Day is signed ad-hoc rather than with a paid Apple certificate, so macOS asks you to
+confirm the first launch. That is once, and every launch after is a normal double-click.
+
+macOS keys the Accessibility permission to the exact binary, so updating the app clears it
+and window titles stop being recorded until you grant it again. The menu bar says "Window
+titles off" when that has happened, and clicking it opens the right pane. Everything else
+keeps working meanwhile.
+
+</details>
 
 ## Privacy
 
@@ -227,6 +196,47 @@ enabling one logs every send to a file you can read.
 Clearing removes the notes **and** the raw events behind them. Deleting a note alone would
 leave the events on disk and the next rollup would write it straight back.
 
+App names and times need no permission at all. Page titles and addresses come from the
+history file your browser already keeps, which does not prompt either. Window titles are the
+only part that asks for anything: `myday build-helper` compiles a 60-line Swift program that
+reads two attributes and prints them, and Accessibility goes to that binary. Granting it to
+`osascript` instead would give every script on your machine the same access.
+
+## How it works
+
+```mermaid
+flowchart LR
+    A["Every 15s<br/>which app is in front"] --> D
+    B["Your browser's own<br/>history database"] --> D
+    C["Claude Code<br/>session transcripts"] --> D
+    D["Every 10 minutes<br/>one Markdown note"] --> E["~/.myday/memories/"]
+    E --> F["The app<br/>timeline, threads, friction"]
+    E --> G["MCP server<br/>your AI assistant reads it"]
+```
+
+## Where this came from
+
+OpenAI shipped **Computer History** in the ChatGPT Mac app in August 2026: record interaction
+events rather than screenshots, roll them up every ten minutes into Markdown memory files,
+read those back when the user asks about past work. Windows Recall and Rewind had taken the
+screenshot route before it and spent their public lives defending that choice.
+
+The text-only decision is the good one, and My Day keeps it. Where the two part ways:
+
+| | ChatGPT Computer History | My Day |
+|---|---|---|
+| Page detail | scraped from the window | read from the browser's own history |
+| Works with | ChatGPT | any MCP client: Claude Code, Cursor, Zed |
+| Storage | local Markdown | local Markdown, and you pick the folder |
+| Recurring work | — | derived threads with a state per thread |
+| Recurring costs | — | friction, with the evidence attached |
+| Your own history | starts empty | reconstructed from months of browsing on day one |
+
+Threads need two or three weeks before they mean anything, so a fresh install has nothing to
+say at exactly the moment you decide whether to keep it. My Day reads the browsing history
+already on your disk and writes notes for the past sixty days, so the first screen is
+populated.
+
 ## Commands
 
 ```
@@ -239,9 +249,11 @@ myday view                       # the app, in a browser
 
 ## What it does not do yet
 
-- **Window titles need a permission**, so without tier 3 a note names the app and not the document.
-- **Threads bind 41% of consecutive notes.** Continuous work still fragments more than it should.
-- **Nothing pushes.** Every view waits for you to open it.
-- **macOS only.** The capture layer is Cocoa and LaunchServices.
+- **Window titles need Accessibility**, so without it a note names the app and not the document.
+- **macOS only.** The sampler and the helper are both AppKit.
+- **Git and calendar are planned**, not built. The source registry already lists them.
+- **No sync.** One machine, one history, by design.
 
-MIT licensed. Built by [Abhishek Sivaraman](https://github.com/abhitsian).
+## License
+
+MIT
