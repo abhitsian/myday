@@ -52,7 +52,22 @@ cp "$ROOT/app/Info.plist" "$C/Info.plist"
 [ -f "$ROOT/app/AppIcon.icns" ] && cp "$ROOT/app/AppIcon.icns" "$C/Resources/AppIcon.icns"
 
 echo "▸ signing (ad-hoc — no Developer ID on this machine)"
-codesign --force --deep --sign - --identifier com.abhitsian.myday "$APP"
+# macOS keys the Accessibility permission to the app's designated requirement. Ad-hoc signing
+# makes that requirement the cdhash, which changes on every build, so each rebuild silently
+# revoked window titles until the permission was granted again. Signing with a stable
+# certificate makes the requirement the certificate identity instead, and the grant survives.
+#
+# Create the identity once (see app/signing-identity.md). Without it this falls back to
+# ad-hoc, so a clone with no certificate still builds.
+SIGN_ID="${MYDAY_SIGN_ID:-My Day Local Signing}"
+if security find-identity -v -p codesigning 2>/dev/null | grep -qF "$SIGN_ID"; then
+  echo "Signing with: $SIGN_ID"
+  codesign --force --deep --sign "$SIGN_ID" --identifier com.abhitsian.myday "$APP"
+else
+  echo "No signing identity found, using ad-hoc. Accessibility will need re-granting after"
+  echo "each rebuild. See app/signing-identity.md to fix that."
+  codesign --force --deep --sign - --identifier com.abhitsian.myday "$APP"
+fi
 
 if [[ "$1" == "--install" ]]; then
   echo "▸ installing to /Applications"
