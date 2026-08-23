@@ -36,11 +36,16 @@ node bin/myday.js sources claudeCode off >/dev/null 2>&1
 
 # Three full windows, every sample written twice — the shape produced when the Mac app and
 # the launchd daemon both record.
-python3 - "$TF" <<'PY'
+# Seeded relative to now, not at a fixed hour. A rollup only writes windows that have
+# already elapsed, so seeding 08:00 meant the test passed in the afternoon and failed before
+# 08:30. Two hours back is always closed, and passing the date explicitly keeps it correct
+# when two hours ago was yesterday.
+SEED_DATE=$(python3 - "$TF" <<'PY'
 import json, os, sys, datetime
 T = sys.argv[1]
-d = datetime.date.today().isoformat()
-base = datetime.datetime.combine(datetime.date.today(), datetime.time(8, 0))
+now = datetime.datetime.now()
+base = (now - datetime.timedelta(hours=2)).replace(second=0, microsecond=0)
+base = base.replace(minute=base.minute - base.minute % 10)
 rows = []
 for slot in range(3):
     for i in range(20):
@@ -48,11 +53,14 @@ for slot in range(3):
         r = {"ts": t.strftime("%Y-%m-%dT%H:%M:%S"),
              "app": ["Code", "Slack"][i % 2], "title": "retry.ts", "idle": 2}
         rows.append(r); rows.append(dict(r))
+d = base.date().isoformat()
 with open(os.path.join(T, 'raw', d + '.jsonl'), 'w') as f:
     for r in rows: f.write(json.dumps(r) + "\n")
+print(d)
 PY
+)
 
-node bin/myday.js rollup >/dev/null 2>&1
+node bin/myday.js rollup --date "$SEED_DATE" >/dev/null 2>&1
 NOTES=$(find "$TF/memories" -name '*.md' | wc -l | tr -d ' ')
 chk "rollup writes one note per closed window" "$NOTES" "3"
 
