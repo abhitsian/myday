@@ -54,13 +54,29 @@ EOF
 echo "Generating a self-signed code-signing certificate..."
 openssl req -x509 -newkey rsa:2048 -keyout "$TMP/key.pem" -out "$TMP/cert.pem" \
   -days 7300 -nodes -config "$TMP/cs.cnf" >/dev/null 2>&1
-openssl pkcs12 -export -inkey "$TMP/key.pem" -in "$TMP/cert.pem" \
+
+# OpenSSL 3 writes PKCS#12 with a SHA-256 MAC and AES, and Apple's Security framework cannot
+# verify either, so the import fails with "MAC verification failed (wrong password?)" when
+# the password is fine. The legacy algorithms are what macOS reads.
+LEGACY=""
+if openssl pkcs12 -help 2>&1 | grep -q -- "-legacy"; then
+  LEGACY="-legacy -macalg sha1 -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-3DES"
+fi
+# shellcheck disable=SC2086
+openssl pkcs12 -export $LEGACY -inkey "$TMP/key.pem" -in "$TMP/cert.pem" \
   -out "$TMP/bundle.p12" -name "$NAME" -passout pass:temp >/dev/null 2>&1
 
-# -T /usr/bin/codesign lets codesign use the key without prompting on every build.
+KC="$HOME/Library/Keychains/login.keychain-db"
 echo "Importing into your login keychain. macOS may ask for your password."
-security import "$TMP/bundle.p12" -k "$HOME/Library/Keychains/login.keychain-db" \
-  -P temp -T /usr/bin/codesign -A
+
+# -T /usr/bin/codesign lets codesign use the key without prompting on every build.
+if ! security import "$TMP/bundle.p12" -k "$KC" -P temp -T /usr/bin/codesign -A 2>/dev/null; then
+  # No PKCS#12 involved, so no MAC to disagree about. The keychain pairs the key and the
+  # certificate into one identity by matching public keys.
+  echo "Bundle import failed, importing the key and certificate separately..."
+  security import "$TMP/key.pem"  -k "$KC" -T /usr/bin/codesign -A
+  security import "$TMP/cert.pem" -k "$KC" -T /usr/bin/codesign -A
+fi
 
 echo
 if security find-identity -v -p codesigning | grep -qF "$NAME"; then
