@@ -89,19 +89,39 @@ than any single member, so one shared word cannot chain everything together.
 Each thread carries a state: today, yesterday, this week, quiet. The ones you picked up and
 put down surface first, because work you dropped is the reason to open the view.
 
+## People
+
+A personal CRM you never fill in. Dex and Clay and Monica all make you log each interaction
+by hand; this reads the names off your meeting, chat and mail window titles, and counts.
+
+For each person you get how often you were in contact, when you last were, a rising, fading
+or cold trend, and the documents you had open together. The list leads with who is going
+cold: someone you were in regular contact with, then a week of nothing. Nothing else here
+surfaces that, and it is the thing a manager actually misses.
+
+The names are filtered so the list is people, not products. A stop list removes feature and
+document vocabulary, and your own name, detected from the account it appears under.
+
+## What you read
+
+Everything you read, across every app rather than only the browser. A Word document, a Notion
+page, a PDF in Preview, a ticket in your tracker all land in one list, ranked by the time and
+the days they drew, each linking back to the page.
+
+The bar is deliberately low, so a spec you opened for two minutes still shows. What gets
+stripped is news fronts, entertainment, social feeds, search-result pages and sign-in
+plumbing, because those are glances rather than reading. When it is unsure, it keeps.
+
+Reading the body of a page, not just its title, is an optional source: it uses the same
+Accessibility grant window titles need, takes no screenshot, and stores no image. With it on,
+a note can say what a page said rather than only that you had it open. It is the most
+sensitive thing here, so it is off until you turn it on.
+
 ## Friction
 
-The costs a day hides from you, each one counted rather than asserted:
-
-- Signing in to the same host 29 times a week, which is what a short session timeout looks
-  like from the outside
-- The same search typed on 13 separate days, because the answer never got saved anywhere
-- A page you navigate to most days and never bookmarked
-- Two apps you bounce between in under two minutes, repeatedly, when one of them is a chat app
-
-Every finding shows how many times, across how many days, and what the evidence was. Nothing
-is inferred from a mood or a score. Time figures are labelled estimates where they are
-estimates, because a re-login is timed at roughly thirty seconds rather than measured.
+Recurring costs, counted rather than asserted: signing in to the same host 29 times a week,
+the same search typed on 13 separate days, a page you open daily and never bookmarked. Each
+finding shows how many times and across how many days. Available from `myday friction`.
 
 ---
 
@@ -199,7 +219,7 @@ leave the events on disk and the next rollup would write it straight back.
 One source is off by default and stays off until you build and enable it: **on-screen text**.
 It reads the body of the page or document in front, not just its title, so a note can say what
 you read rather than what you had open. It uses the same Accessibility grant window titles
-need, and it is the most sensitive thing here — page bodies are emails, messages and
+need, and it is the most sensitive thing here. Page bodies are emails, messages and
 documents. On a cloud summariser that text is sent to the model and logged to `egress.log`.
 Turn it on with `myday build-content` then `myday sources content on`.
 
@@ -232,11 +252,13 @@ The text-only decision is the good one, and My Day keeps it. Where the two part 
 
 | | ChatGPT Computer History | My Day |
 |---|---|---|
-| Page detail | scraped from the window | read from the browser's own history |
+| Keystrokes and clicks | recorded | never |
+| Page detail | scraped from the window | the browser's own history, plus optional on-screen text |
 | Works with | ChatGPT | any MCP client: Claude Code, Cursor, Zed |
 | Storage | local Markdown | local Markdown, and you pick the folder |
-| Recurring work | — | derived threads with a state per thread |
-| Recurring costs | — | friction, with the evidence attached |
+| Recurring work | — | derived threads, work only |
+| People | — | who you contacted, when, going cold |
+| What you read | — | ranked across every app, news stripped |
 | Your own history | starts empty | reconstructed from months of browsing on day one |
 
 Threads need two or three weeks before they mean anything, so a fresh install has nothing to

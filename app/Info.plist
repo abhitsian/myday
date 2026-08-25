@@ -5,8 +5,8 @@
   <key>CFBundleName</key><string>My Day</string>
   <key>CFBundleDisplayName</key><string>My Day</string>
   <key>CFBundleIdentifier</key><string>com.abhitsian.myday</string>
-  <key>CFBundleVersion</key><string>0.1.1</string>
-  <key>CFBundleShortVersionString</key><string>0.1.1</string>
+  <key>CFBundleVersion</key><string>0.1.2</string>
+  <key>CFBundleShortVersionString</key><string>0.1.2</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleExecutable</key><string>MyDay</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
