@@ -260,28 +260,59 @@ final class Sampler {
         let cal = Calendar.current
         let h = cal.component(.hour, from: now), m = cal.component(.minute, from: now)
         let slot = String(format: "%02d%02d", h, (m / 10) * 10)
-        if slot == lastContentSlot { return }        // first capture of the slot wins
-        lastContentSlot = slot
+        if slot == lastContentSlot { return }        // one successful capture per slot
 
-        let helper = Store.root.appendingPathComponent("bin/content").path
-        guard FileManager.default.isExecutableFile(atPath: helper) else { return }
         let day = Store.todayKey()
         let dir = Store.root.appendingPathComponent("content/\(day)")
         let file = dir.appendingPathComponent("\(slot).txt")
         if FileManager.default.fileExists(atPath: file.path) { return }
 
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: helper)
-        let pipe = Pipe(); p.standardOutput = pipe; p.standardError = Pipe()
-        do { try p.run() } catch { return }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        p.waitUntilExit()
-        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              obj["ok"] as? Bool == true,
-              let text = obj["text"] as? String, text.count >= 40 else { return }
+        // In-process, not a helper. macOS keys Accessibility to the exact binary that calls
+        // the AX API. This app is granted; a separate helper binary spawned by it is not, so
+        // shelling out always came back empty. The window-title path already reads AX here for
+        // the same reason.
+        guard let app = NSWorkspace.shared.frontmostApplication,
+              app.processIdentifier != getpid() else { return }
+        let ax = AXUIElementCreateApplication(app.processIdentifier)
+        guard let win = windowAttr(ax, kAXFocusedWindowAttribute as String) else { return }
+        let text = focusedContent(win)
+        if text.count < 40 { return }
 
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         try? String(text.prefix(6000)).write(to: file, atomically: true, encoding: .utf8)
+        lastContentSlot = slot   // only now: a no-content first tick will retry next tick
+    }
+
+    // The on-screen text of a window: the value of its content-bearing elements, deduped and
+    // capped. Buttons and menu items are chrome and are skipped. Mirrors helper/content.swift,
+    // which stays for the CLI path where a separately-granted helper is the model.
+    private let contentRoles: Set<String> = ["AXStaticText", "AXTextArea", "AXTextField", "AXText", "AXWebArea", "AXHeading", "AXParagraph"]
+
+    private func focusedContent(_ root: AXUIElement) -> String {
+        var parts: [String] = []
+        var chars = 0, nodes = 0
+        var seen = Set<String>()
+        func walk(_ el: AXUIElement, _ depth: Int) {
+            if depth > 24 || chars >= 6000 || nodes >= 400 { return }
+            if contentRoles.contains(stringAttr(el, kAXRoleAttribute as String) ?? "") {
+                for a in ["AXValue", "AXSelectedText", "AXDescription"] {
+                    guard let raw = stringAttr(el, a) else { continue }
+                    let t = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if t.count < 3 || seen.contains(t) { continue }
+                    seen.insert(t); parts.append(t); chars += t.count; nodes += 1
+                    break
+                }
+            }
+            var kids: CFTypeRef?
+            if AXUIElementCopyAttributeValue(el, kAXChildrenAttribute as CFString, &kids) == .success,
+               let arr = kids as? [AXUIElement] {
+                for k in arr.prefix(120) { walk(k, depth + 1) }
+            }
+        }
+        // Chromium builds its a11y tree only when asked; harmless elsewhere.
+        AXUIElementSetAttributeValue(root, "AXManualAccessibility" as CFString, kCFBooleanTrue)
+        walk(root, 0)
+        return parts.joined(separator: "\n")
     }
 }
 
