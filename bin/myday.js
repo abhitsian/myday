@@ -17,6 +17,8 @@ const R = require('../lib/rollup');
 const A = require('../lib/analytics');
 const FR = require('../lib/friction');
 const TH = require('../lib/threads');
+const PPL = require('../lib/people');
+const RD = require('../lib/reading');
 const SRC = require('../lib/sources');
 const I = require('../lib/icons');
 
@@ -694,6 +696,16 @@ function cmdView() {
     if (u.pathname === '/api/sources') {
       res.writeHead(200, { 'content-type': 'application/json' });
       return res.end(JSON.stringify({ sources: SRC.inventory() }));
+    }
+    if (u.pathname === '/api/people') {
+      let out; try { out = PPL.build(days(u.searchParams.get('days'), 16)); }
+      catch (e) { out = { error: e.message, people: [], cold: [] }; }
+      res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify(out));
+    }
+    if (u.pathname === '/api/reading') {
+      let out; try { out = RD.build(days(u.searchParams.get('days'), 14)); }
+      catch (e) { out = { error: e.message, items: [] }; }
+      res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify(out));
     }
     if (u.pathname === '/api/threads') {
       let out; try { out = TH.build(days(u.searchParams.get('days'), 7)); }

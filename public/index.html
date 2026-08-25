@@ -342,6 +342,43 @@ h2 span{font-weight:400;color:var(--faint)}
   border-radius:var(--r);padding:30px;text-align:center;line-height:1.9}
 footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);
   font-size:var(--t-xs);color:var(--faint);line-height:1.8}
+/* People + Content */
+.pcold{margin:0 0 22px;padding:16px 18px;background:var(--card);border:1px solid var(--line);border-radius:12px}
+.pcold h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--warn);font-weight:640;display:flex;align-items:center;gap:7px}
+.pcold h3::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--warn)}
+.pcoldrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.pchip{font:inherit;font-size:13px;padding:7px 11px;background:var(--sunk);border:0;border-radius:9px;cursor:pointer}
+.pchip b{font-weight:600}.pchip span{font-family:var(--num);font-size:12px;color:var(--faint)}
+.ptable{width:100%;border-collapse:collapse;margin-top:6px}
+.ptable th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:600;padding:0 10px 9px;border-bottom:1px solid var(--line)}
+.ptable td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.ptable tr{cursor:pointer}.ptable tbody tr:hover td{background:var(--card)}
+.pnm{font-weight:600}.pch{font-size:12.5px;color:var(--mut)}.pn{font-family:var(--num);font-size:13px;color:var(--mut);text-align:right;width:38px}
+.plast{font-family:var(--num);font-size:12px;color:var(--faint)}
+.pspark{display:inline-flex;gap:2px;align-items:flex-end}
+.pspark i{width:4px;background:var(--accent);border-radius:1.5px;opacity:.8;min-height:2px}
+.ptr{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.ptr.rising{color:#2f6b3d;background:#e6f1e8}.ptr.fading{color:#8a5a12;background:#f6ecdb}
+.ptr.steady{color:var(--mut);background:var(--sunk)}.ptr.cold{color:var(--warn);background:#f6e6d6}
+.ptopic{color:var(--mut);font-size:13px;max-width:30ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#pscrim{position:fixed;inset:0;background:rgba(20,18,12,.28);opacity:0;pointer-events:none;transition:opacity .18s;z-index:40}
+#pscrim.on{opacity:1;pointer-events:auto}
+#pdrawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,92vw);background:var(--bg);border-left:1px solid var(--line);
+  transform:translateX(100%);transition:transform .22s cubic-bezier(.16,1,.3,1);padding:32px 28px;overflow-y:auto;z-index:41}
+#pdrawer.on{transform:none}
+#pdrawer h3{font-size:22px;font-weight:680;letter-spacing:-.01em}
+#pdrawer .pmeta{font-family:var(--num);font-size:12px;color:var(--mut);margin-top:6px}
+.pdsec{margin-top:22px}.plbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);font-weight:600;margin-bottom:9px}
+.pdtopic{padding:8px 11px;background:var(--card);border:1px solid var(--line);border-radius:8px;margin-bottom:6px;font-size:13px}
+.pdstrip{display:flex;gap:2px;align-items:flex-end;height:40px}.pdstrip i{flex:1;background:var(--accent);border-radius:2px;opacity:.8;min-height:2px}
+.pnote{color:var(--faint);font-size:12.5px;margin-top:6px}
+.rdlist{margin-top:8px}
+.rdrow{display:flex;gap:16px;padding:12px 4px;border-bottom:1px solid var(--line);align-items:baseline}
+.rdmin{font-family:var(--num);font-size:12.5px;color:var(--mut);width:44px;text-align:right;flex:none}
+.rdtitle{font-size:14.5px;font-weight:520;line-height:1.35}
+.rdmeta{font-size:12px;color:var(--faint);margin-top:3px;display:flex;align-items:center;gap:7px}
+.rdsrc{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:5px;font-weight:600}
+.rdsrc.doc{background:#e6eef1;color:#3a6070}.rdsrc.web{background:var(--sunk);color:var(--mut)}.rdsrc.app{background:#efe9f2;color:#6a5580}
 </style>
 </head>
 <body>
@@ -359,6 +396,8 @@ footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);
     <button class="tab" data-v="browse">Reading</button>
     <button class="tab" data-v="sessions">Building</button>
     <button class="tab" data-v="threads">Threads</button>
+    <button class="tab" data-v="people">People</button>
+    <button class="tab" data-v="reading">Content</button>
     <button class="tab" data-v="friction">Friction</button>
     <button class="tab" data-v="permissions">Permissions</button>
   </div>
@@ -781,6 +820,56 @@ async function renderPane(){
       }).join('');
   }
 
+  if (view==='people'){
+    if (!d.people || !d.people.length) return pane.innerHTML =
+      `<div class="none">No contacts found yet.<br>People are read from meeting, chat and mail window titles as they accumulate.</div>`;
+    const days = d.dates || [];
+    const ago = n => n===0?'today':n===1?'yesterday':n+'d ago';
+    const chIcon = c => /teams/i.test(c)?'💬':/zoom/i.test(c)?'🎦':/outlook|mail/i.test(c)?'✉️':/slack/i.test(c)?'#':'·';
+    const spark = (p,h=24) => { const v=days.map(x=>p.perDay[x]||0), mx=Math.max(...v,1);
+      return `<span class="pspark" style="height:${h}px">`+v.map(x=>`<i style="height:${Math.max(2,Math.round(x/mx*h))}px"></i>`).join('')+`</span>`; };
+    pane.innerHTML =
+      (d.cold.length
+        ? `<div class="pcold"><h3>Going cold</h3><div class="pcoldrow">`+
+          d.cold.slice(0,6).map(p=>`<button class="pchip" data-p="${esc(p.name)}"><b>${esc(p.name)}</b> <span>${ago(p.daysAgo)}</span></button>`).join('')+`</div></div>`
+        : '')+
+      `<p class="lede"><span class="big">${d.people.length}</span> people, last ${d.days} days. Derived from what happened, nothing entered by hand.</p>`+
+      `<table class="ptable"><thead><tr><th>Name</th><th>Channel</th><th>Contact</th><th class="pn">×</th><th>Last</th><th>Trend</th><th>What</th></tr></thead><tbody>`+
+      d.people.map(p=>`<tr data-p="${esc(p.name)}">
+        <td class="pnm">${esc(p.name)}</td>
+        <td class="pch">${chIcon(p.channel)} ${esc(p.channel.replace('Microsoft ',''))}</td>
+        <td>${spark(p)}</td><td class="pn">${p.freq}</td>
+        <td class="plast">${ago(p.daysAgo)}</td>
+        <td><span class="ptr ${p.trend}">${p.trend}</span></td>
+        <td class="ptopic">${esc((p.topics[0]||'—').replace(/\.(docx?|xlsx?|pptx?)$/,''))}</td>
+      </tr>`).join('')+`</tbody></table>`;
+    pane.querySelectorAll('[data-p]').forEach(el=>el.onclick=()=>{
+      const p=d.people.find(x=>x.name===el.dataset.p); if(!p)return;
+      const dr=document.getElementById('pdrawer'), sc=document.getElementById('pscrim');
+      dr.innerHTML=`<h3>${esc(p.name)}</h3>
+        <div class="pmeta">${esc(p.channel.replace('Microsoft ',''))} · ${p.freq} contacts across ${p.daysActive} days · last ${ago(p.daysAgo)}</div>
+        <div class="pdsec"><div class="plbl">Contact rhythm</div>${spark(p,40).replace('pspark','pdstrip')}</div>
+        <div class="pdsec"><div class="plbl">Worked on together</div>`+
+        (p.topics.length?p.topics.map(t=>`<div class="pdtopic">${esc(t)}</div>`).join(''):`<div class="pnote">Fills in as content capture runs.</div>`)+`</div>
+        <div class="pdsec"><div class="plbl">Trend</div><span class="ptr ${p.trend}">${p.trend}</span>
+        <div class="pnote">${p.trend==='cold'?'Not in contact recently. Worth a check-in.':p.trend==='fading'?'Tapering off from earlier.':p.trend==='rising'?'Picking up.':'Steady.'}</div></div>`;
+      dr.classList.add('on'); sc.classList.add('on');
+    });
+  }
+
+  if (view==='reading'){
+    if (!d.items || !d.items.length) return pane.innerHTML =
+      `<div class="none">Nothing surfaced yet.<br>Work documents and pages you read appear here, across every app.</div>`;
+    const srcTag = s => s==='doc'?'document':s==='app'?'app':'web';
+    pane.innerHTML =
+      `<p class="lede"><span class="big">${d.count}</span> things read, last ${d.days} days. Documents and work pages across every app, news and entertainment stripped.</p>`+
+      `<div class="rdlist">`+d.items.slice(0,60).map(r=>`<div class="rdrow">
+        <div class="rdmin">${r.minutes}m</div>
+        <div class="rdbody"><div class="rdtitle">${esc(r.title.replace(/ - Google Chrome.*$/,''))}</div>
+          <div class="rdmeta"><span class="rdsrc ${r.source}">${srcTag(r.source)}</span> ${esc(r.host||r.app)} · ${r.days} day${r.days===1?'':'s'} · last ${r.daysAgo===0?'today':r.daysAgo+'d ago'}</div>
+        </div></div>`).join('')+`</div>`;
+  }
+
   if (view==='permissions'){
     const P = await (await fetch('/api/permissions')).json();
     const CFG = await (await fetch('/api/config')).json();
@@ -965,5 +1054,7 @@ setInterval(() => { if (document.visibilityState === 'visible') refresh(); }, 5 
 
 load(new URLSearchParams(location.search).get('date') || undefined);
 </script>
+<div id="pscrim" onclick="document.getElementById('pdrawer').classList.remove('on');this.classList.remove('on')"></div>
+<aside id="pdrawer"></aside>
 </body>
 </html>
