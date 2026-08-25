@@ -396,7 +396,6 @@ footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);
     <button class="tab" data-v="threads">Threads</button>
     <button class="tab" data-v="people">People</button>
     <button class="tab" data-v="reading">Content</button>
-    <button class="tab" data-v="friction">Friction</button>
     <button class="tab" data-v="permissions">Permissions</button>
   </div>
 
@@ -904,34 +903,6 @@ async function renderPane(){
     });
   }
 
-  if (view==='friction'){
-    if (!d.findings || !d.findings.length) return pane.innerHTML =
-      `<div class="none">Nothing recurring across ${d.days||21} days.<br>Friction needs a couple of weeks before patterns show.</div>`;
-    const LABEL={auth:'Signing in again', search:'Searching for the same thing',
-                 pingpong:'Pulled away and straight back', boomerang:'Navigating there again'};
-    const maxCost = Math.max(...d.findings.map(f=>f.estMinPerWeek||0), 1);
-    pane.innerHTML =
-      `<p class="lede"><span class="big">~${d.estMinPerWeek}m</span> a week lost to <b>${d.findings.length}</b> `+
-      `recurring frictions, found across ${d.days} days and ${d.visits.toLocaleString()} page visits.</p>
-       <div class="span">${esc(d.note||'')}</div>`+
-      ['auth','search','pingpong','boomerang'].filter(k=>d.findings.some(f=>f.kind===k)).map(k=>
-        `<h2>${esc(LABEL[k]||k)}</h2>`+
-        d.findings.filter(f=>f.kind===k).map(f=>
-          `<div class="fitem">
-             <div>
-               <div class="ft">${esc(f.title)}</div>
-               <div class="fd">${esc(f.detail)}</div>
-               <div class="ff"><em>FIX</em>${esc(f.fix)}</div>
-             </div>
-             <div class="fcost">`+
-               (f.estMinPerWeek
-                 ? `<div class="n">${f.estMinPerWeek}</div><div class="u">min / week</div>
-                    <div class="tr"><i style="width:${Math.round(f.estMinPerWeek/maxCost*100)}%"></i></div>`
-                 : `<div class="u">no time cost —<br>just friction</div>`)+
-             `</div>
-           </div>`).join('')
-      ).join('');
-  }
 }
 
 document.getElementById('tabs').onclick = e => {
