@@ -27,9 +27,9 @@
 set -euo pipefail
 NAME="${MYDAY_SIGN_ID:-My Day Local Signing}"
 
-if security find-identity -v -p codesigning 2>/dev/null | grep -qF "$NAME"; then
+if security find-identity -p codesigning 2>/dev/null | grep -qF "$NAME"; then
   echo "Already present: $NAME"
-  security find-identity -v -p codesigning | grep -F "$NAME"
+  security find-identity -p codesigning | grep -F "$NAME"
   exit 0
 fi
 
@@ -79,7 +79,9 @@ if ! security import "$TMP/bundle.p12" -k "$KC" -P temp -T /usr/bin/codesign -A 
 fi
 
 echo
-if security find-identity -v -p codesigning | grep -qF "$NAME"; then
+# Checked without -v on purpose: a self-signed certificate reports as not-trusted, which
+# excludes it from the valid list while leaving it perfectly able to sign.
+if security find-identity -p codesigning | grep -qF "$NAME"; then
   echo "Done. Now rebuild and grant Accessibility one more time:"
   echo
   echo "    tccutil reset Accessibility com.abhitsian.myday"

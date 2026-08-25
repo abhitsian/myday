@@ -51,7 +51,6 @@ fi
 cp "$ROOT/app/Info.plist" "$C/Info.plist"
 [ -f "$ROOT/app/AppIcon.icns" ] && cp "$ROOT/app/AppIcon.icns" "$C/Resources/AppIcon.icns"
 
-echo "▸ signing (ad-hoc — no Developer ID on this machine)"
 # macOS keys the Accessibility permission to the app's designated requirement. Ad-hoc signing
 # makes that requirement the cdhash, which changes on every build, so each rebuild silently
 # revoked window titles until the permission was granted again. Signing with a stable
@@ -60,7 +59,10 @@ echo "▸ signing (ad-hoc — no Developer ID on this machine)"
 # Create the identity once (see app/signing-identity.md). Without it this falls back to
 # ad-hoc, so a clone with no certificate still builds.
 SIGN_ID="${MYDAY_SIGN_ID:-My Day Local Signing}"
-if security find-identity -v -p codesigning 2>/dev/null | grep -qF "$SIGN_ID"; then
+# Not -v. A self-signed certificate is never "valid" to the trust evaluator, so -v reports
+# zero identities while the identity is sitting right there and codesign signs with it
+# perfectly well. Trust governs Gatekeeper, not whether the key can sign.
+if security find-identity -p codesigning 2>/dev/null | grep -qF "$SIGN_ID"; then
   echo "Signing with: $SIGN_ID"
   codesign --force --deep --sign "$SIGN_ID" --identifier com.abhitsian.myday "$APP"
 else

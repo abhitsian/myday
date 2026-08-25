@@ -212,6 +212,37 @@ function cmdStatus() {
 }
 
 // ---------------------------------------------------------------- helper
+// Apple's on-device model, compiled into the same store-owned bin/ as the window-title
+// helper. Separate from build-helper because it needs no permission and answers a different
+// question: who writes the sentences, rather than what can be seen.
+function cmdBuildSummarizer() {
+  if (!requireInit()) return;
+  try { execFileSync('which', ['swiftc'], { stdio: 'ignore' }); }
+  catch { return say('swiftc not found. Install Xcode Command Line Tools:\n  xcode-select --install'); }
+  const out = path.join(S.ROOT, 'bin', 'summarize');
+  const src = path.join(__dirname, '..', 'helper', 'summarize.swift');
+  if (!fs.existsSync(src)) return say('helper/summarize.swift is missing from this install.');
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  try { execFileSync('swiftc', ['-O', '-o', out, src], { stdio: 'inherit' }); }
+  catch { return say('Build failed. This needs macOS 26 or later, where FoundationModels exists.'); }
+
+  // Availability is a runtime fact: the framework can be present while Apple Intelligence is
+  // switched off, and the binary is the only thing that can answer.
+  let ok = false;
+  try { execFileSync(out, { input: 'Window: probe\nApps: Finder 1m', encoding: 'utf8', timeout: 60000 }); ok = true; }
+  catch (e) { ok = false; }
+  say(`Built ${out}`);
+  if (!ok) {
+    say('\nThe model is not available on this Mac. That usually means Apple Intelligence is');
+    say('switched off, or this is not Apple Silicon. Notes stay on the current summarizer.');
+    return;
+  }
+  say('\nWorking. To use it:  myday config summarizer ondevice');
+  say('\nIt runs entirely on this Mac, so nothing is sent anywhere. It is weaker than a');
+  say('frontier model and will occasionally reach for a detail the capture does not support,');
+  say('so every note it writes is stamped `generator: ondevice` and can be audited later.');
+}
+
 function cmdBuildHelper() {
   if (!requireInit()) return;
   try { execFileSync('which', ['swiftc'], { stdio: 'ignore' }); }
@@ -747,6 +778,7 @@ function cmdHelp() {
   start | stop         run or halt the background daemon
   status               what is working, what is not
   build-helper         optional: compile the window-title helper
+  build-summarizer     optional: compile the on-device summariser (macOS 26+)
 
   show [--date D]      the day's memories
   apps [--week]        time per app, context switches, the shape of the day
@@ -781,6 +813,7 @@ function cmdHelp() {
       case 'stop': return cmdStop();
       case 'status': return cmdStatus();
       case 'build-helper': return cmdBuildHelper();
+      case 'build-summarizer': return cmdBuildSummarizer();
       case 'show': return cmdShow();
       case 'apps': return cmdApps();
       case 'browse': return cmdBrowse();
