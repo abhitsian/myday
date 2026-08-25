@@ -393,8 +393,6 @@ footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);
     <button class="tab on" data-v="home">Today</button>
     <button class="tab" data-v="memories">Timeline</button>
     <button class="tab" data-v="apps">Apps</button>
-    <button class="tab" data-v="browse">Reading</button>
-    <button class="tab" data-v="sessions">Building</button>
     <button class="tab" data-v="threads">Threads</button>
     <button class="tab" data-v="people">People</button>
     <button class="tab" data-v="reading">Content</button>
@@ -695,94 +693,7 @@ async function renderPane(){
       `</div>`;
   }
 
-  if (view==='browse'){
-    if (!d.blocks || !d.blocks.length) return pane.innerHTML =
-      '<div class="none">No browsing recorded for this day.</div>';
-    // Grouped by site rather than laid out on a clock: what you read is content, and a
-    // second time-gutter log would just be the Timeline again.
-    const byHost = {};
-    for (const b of d.blocks) {
-      const g = byHost[b.host] || (byHost[b.host] = { host: b.host, count: 0, first: b.start, last: b.end||b.start, pages: [] });
-      g.count += b.count; g.last = b.end || b.start;
-      for (const pg of (b.pages || b.titles.map(t=>({title:t,url:null}))))
-        if (!g.pages.some(x=>x.title===pg.title)) g.pages.push(pg);
-    }
-    const groups = Object.values(byHost).sort((a,b)=>b.count-a.count);
-    pane.innerHTML =
-      `<p class="lede"><span class="big">${d.visits}</span> pages across <b>${groups.length}</b> sites.</p>`+
-      groups.map(g=>`<div class="rgroup">
-        <div class="rhost"><b>${esc(g.host)}</b><span>${g.count} page${g.count===1?'':'s'}</span>
-          <span class="when">${g.first}${g.last!==g.first?'–'+g.last:''}</span></div>`+
-        g.pages.slice(0,8).map(pg=>`<div class="rart"><span class="rt">`+
-          (pg.url ? `<a href="${esc(pg.url)}" target="_blank" rel="noopener noreferrer"
-                        title="${esc(pg.url)}">${esc(pg.title)}</a>` : esc(pg.title))+
-          `</span></div>`).join('')+
-        (g.pages.length>8?`<div class="rart"><span class="rc">+${g.pages.length-8} more</span></div>`:'')+
-      `</div>`).join('');
-  }
 
-  if (view==='sessions'){
-    setTimeout(()=>{ const r=pane.querySelector('.reon'); if(r) r.onclick=async()=>{
-      await fetch('/api/sources',{method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({id:r.dataset.src,enabled:true})});
-      render();
-    };}, 0);
-    // Two different empty states. Saying "no transcripts found" when the person switched the
-    // source off is a lie the app can check, and it sends them looking for a bug instead of
-    // a setting.
-    if (d.disabled) return pane.innerHTML =
-      '<div class="none">Claude Code is switched off under Permissions.<br>'+
-      '<button class="reon" data-src="claudeCode">Turn it back on</button></div>';
-    if (!d.available) return pane.innerHTML =
-      '<div class="none">No Claude Code transcripts found.<br>This view is for Claude Code users.</div>';
-    if (!d.sessions.length) return pane.innerHTML = '<div class="none">No sessions on this day.</div>';
-    const mins = t => { const [h,m]=t.split(':').map(Number); return h*60+m; };
-    const lo = Math.max(0, Math.min(...d.sessions.map(s=>mins(s.start))) - 30);
-    const hi = Math.min(1440, Math.max(...d.sessions.map(s=>mins(s.end))) + 30);
-    const span = Math.max(hi-lo, 60);
-    const pctOf = m => (m-lo)/span*100;
-    assignHues(d.projects.map(p=>p.project));
-    // Hour ticks at a spacing that stays readable however long the working span was.
-    const step = span > 600 ? 120 : span > 240 ? 60 : 30;
-    const ticks = [];
-    for (let m = Math.ceil(lo/step)*step; m < hi; m += step) ticks.push(m);
-
-    pane.innerHTML =
-      `<p class="lede"><span class="big">${d.sessions.length}</span> sessions, <b>${durm(d.totalMins*60)}</b> elapsed`+
-      (d.spanMins && d.spanMins > d.totalMins
-        ? ` — ${durm(d.spanMins*60)} if you add the spans up, so ${Math.round((1-d.totalMins/d.spanMins)*100)}% of it ran in parallel`
-        : '')+`.</p>
-
-      <h2>When each ran <span>— overlapping bars are sessions open at once</span></h2>
-      <div class="gantt">`+
-        ticks.map(m=>`<span class="gtick" style="left:${pctOf(m)}%"></span>`).join('')+
-        d.sessions.map(sn=>{
-          const l = pctOf(mins(sn.start)), w = Math.max(pctOf(mins(sn.end)) - l, 0.6);
-          const wide = w > 22;
-          return `<div class="grow">
-            <span class="gbar" style="left:${l}%;width:${w}%;background:${hue(sn.project)}"
-                  title="${esc(sn.project)} · ${sn.start}–${sn.end} · ${sn.mins}m · ${sn.turns} turns">`+
-              (wide?`<b>${esc(sn.project)} · ${sn.mins}m</b>`:'')+`</span>
-            <span class="glabel" style="left:calc(${l}% + ${wide?0:Math.max(w,0.6)}%);padding-left:${wide?0:8}px">`+
-              (wide?'':`${esc(sn.project)} · ${sn.mins}m — ${esc(sn.prompt)}`)+`</span>
-          </div>`;
-        }).join('')+
-      `</div>
-      <div class="gaxis">`+ ticks.map(m=>
-        `<span style="position:absolute;left:${pctOf(m)}%">${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}</span>`
-      ).join('') + `<span>&nbsp;</span></div>
-
-      <h2>By project</h2>`+
-      d.projects.map(pr=>bar(pr.project, Math.round(pr.mins/Math.max(...d.projects.map(x=>x.mins),1)*100),
-                             `${pr.mins}m · ${pr.count}×`, hue(pr.project), false)).join('')+
-      // Named rather than silently dropped: a view that quietly hides rows is worse than
-      // one that says what it set aside and why.
-      ((d.automation||[]).length
-        ? `<h2>Set aside as automation <span>— repeated short runs, not you working</span></h2>`+
-          d.automation.map(j=>`<div class="rart"><span class="rt">${esc(j.prompt)}…</span>`+
-            `<span class="rc">${j.runs}× · ${j.mins}m</span></div>`).join('')
-        : '');
-  }
 
   if (view==='threads'){
     if (!d.threads || !d.threads.length) return pane.innerHTML =
