@@ -91,6 +91,8 @@ put down surface first, because work you dropped is the reason to open the view.
 
 ## People
 
+<img src="docs/screens/people.jpg" alt="People: who you were in contact with, when, and about what">
+
 A personal CRM you never fill in. Dex and Clay and Monica all make you log each interaction
 by hand; this reads the names off your meeting, chat and mail window titles, and counts.
 
@@ -103,6 +105,8 @@ The names are filtered so the list is people, not products. A stop list removes 
 document vocabulary, and your own name, detected from the account it appears under.
 
 ## What you read
+
+<img src="docs/screens/content.jpg" alt="Content: work documents and pages read across every app, ranked and linked">
 
 Everything you read, across every app rather than only the browser. A Word document, a Notion
 page, a PDF in Preview, a ticket in your tracker all land in one list, ranked by the time and
