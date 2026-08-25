@@ -215,6 +215,24 @@ function cmdStatus() {
 // Apple's on-device model, compiled into the same store-owned bin/ as the window-title
 // helper. Separate from build-helper because it needs no permission and answers a different
 // question: who writes the sentences, rather than what can be seen.
+function cmdBuildContent() {
+  if (!requireInit()) return;
+  try { execFileSync('which', ['swiftc'], { stdio: 'ignore' }); }
+  catch { return say('swiftc not found. Install Xcode Command Line Tools:\n  xcode-select --install'); }
+  const out = path.join(S.ROOT, 'bin', 'content');
+  const src = path.join(__dirname, '..', 'helper', 'content.swift');
+  if (!fs.existsSync(src)) return say('helper/content.swift is missing from this install.');
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  try { execFileSync('swiftc', ['-O', '-o', out, src], { stdio: 'inherit' }); }
+  catch { return say('Build failed.'); }
+  say(`Built ${out}`);
+  say('\nThis reads the text of the window in front, using the Accessibility grant window');
+  say('titles already need. It is the most sensitive source: page bodies are emails, messages');
+  say('and documents. Off until you turn it on:');
+  say('\n  myday sources content on');
+  say('\nOn claude-cli or api, that content is sent to the model and logged to egress.log.');
+}
+
 function cmdBuildSummarizer() {
   if (!requireInit()) return;
   try { execFileSync('which', ['swiftc'], { stdio: 'ignore' }); }
@@ -779,6 +797,7 @@ function cmdHelp() {
   status               what is working, what is not
   build-helper         optional: compile the window-title helper
   build-summarizer     optional: compile the on-device summariser (macOS 26+)
+  build-content        optional: compile the on-screen-text reader
 
   show [--date D]      the day's memories
   apps [--week]        time per app, context switches, the shape of the day
@@ -814,6 +833,7 @@ function cmdHelp() {
       case 'status': return cmdStatus();
       case 'build-helper': return cmdBuildHelper();
       case 'build-summarizer': return cmdBuildSummarizer();
+      case 'build-content': return cmdBuildContent();
       case 'show': return cmdShow();
       case 'apps': return cmdApps();
       case 'browse': return cmdBrowse();

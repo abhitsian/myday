@@ -245,6 +245,43 @@ final class Sampler {
 
         lastApp = name; lastTitle = title
         Store.appendSample(app: name, title: title, idle: idle)
+
+        // On-screen content, once per ten-minute slot, when the source is on. The window
+        // title has already passed the exclude rules above, so a blocked app or page never
+        // reaches this line. Best-effort: any failure just leaves the slot without content.
+        if (cfg["sources"] as? [String: Any])?["content"] as? Bool == true {
+            captureContentIfNewSlot(app: name)
+        }
+    }
+
+    private var lastContentSlot = ""
+    private func captureContentIfNewSlot(app: String) {
+        let now = Date()
+        let cal = Calendar.current
+        let h = cal.component(.hour, from: now), m = cal.component(.minute, from: now)
+        let slot = String(format: "%02d%02d", h, (m / 10) * 10)
+        if slot == lastContentSlot { return }        // first capture of the slot wins
+        lastContentSlot = slot
+
+        let helper = Store.root.appendingPathComponent("bin/content").path
+        guard FileManager.default.isExecutableFile(atPath: helper) else { return }
+        let day = Store.todayKey()
+        let dir = Store.root.appendingPathComponent("content/\(day)")
+        let file = dir.appendingPathComponent("\(slot).txt")
+        if FileManager.default.fileExists(atPath: file.path) { return }
+
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: helper)
+        let pipe = Pipe(); p.standardOutput = pipe; p.standardError = Pipe()
+        do { try p.run() } catch { return }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        p.waitUntilExit()
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              obj["ok"] as? Bool == true,
+              let text = obj["text"] as? String, text.count >= 40 else { return }
+
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try? String(text.prefix(6000)).write(to: file, atomically: true, encoding: .utf8)
     }
 }
 

@@ -196,6 +196,13 @@ enabling one logs every send to a file you can read.
 Clearing removes the notes **and** the raw events behind them. Deleting a note alone would
 leave the events on disk and the next rollup would write it straight back.
 
+One source is off by default and stays off until you build and enable it: **on-screen text**.
+It reads the body of the page or document in front, not just its title, so a note can say what
+you read rather than what you had open. It uses the same Accessibility grant window titles
+need, and it is the most sensitive thing here — page bodies are emails, messages and
+documents. On a cloud summariser that text is sent to the model and logged to `egress.log`.
+Turn it on with `myday build-content` then `myday sources content on`.
+
 App names and times need no permission at all. Page titles and addresses come from the
 history file your browser already keeps, which does not prompt either. Window titles are the
 only part that asks for anything: `myday build-helper` compiles a 60-line Swift program that
@@ -244,6 +251,7 @@ myday init | start | stop | status | uninstall
 myday show | timeline | apps | browse | sessions
 myday threads | friction | search <q> | ask "<question>"
 myday sources | permissions | clear | backfill
+myday build-content              # optional: read on-screen text, off by default
 myday view                       # the app, in a browser
 ```
 
