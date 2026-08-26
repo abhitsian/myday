@@ -240,9 +240,11 @@ flowchart LR
     A["Every 15s<br/>which app is in front"] --> D
     B["Your browser's own<br/>history database"] --> D
     C["Claude Code<br/>session transcripts"] --> D
-    D["Every 10 minutes<br/>one Markdown note"] --> E["~/.myday/memories/"]
-    E --> F["The app<br/>timeline, threads, friction"]
-    E --> G["MCP server<br/>your AI assistant reads it"]
+    H["On-screen text<br/>optional, off by default"] --> D
+    D["Every 10 minutes<br/>one Markdown note<br/>local · on-device · cloud"] --> E["~/.myday/memories/<br/>plain Markdown"]
+    E --> F["The app · 7 views<br/>Today · Timeline · Apps<br/>Threads · People · Content"]
+    E --> G["MCP server<br/>any AI assistant reads it"]
+    E --> I["CLI<br/>search · ask · threads"]
 ```
 
 ## Where this came from
