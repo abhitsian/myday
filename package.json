@@ -1,6 +1,6 @@
 {
   "name": "@abhitsian/myday",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "A private, local memory of what you did on your Mac \u2014 10-minute Markdown records, searchable, and readable by your AI coding agent over MCP",
   "keywords": [
     "mcp",
