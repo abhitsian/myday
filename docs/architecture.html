@@ -1,0 +1,145 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>My Day — Architecture</title>
+<style>
+:root{
+  --bg:#faf9f6; --card:#fffefc; --sunk:#f2f0ea; --ink:#16150f; --mut:#5f5b50;
+  --faint:#96917f; --line:#e2ddd0; --accent:#4f6285; --accent2:#3c4d70;
+  --warn:#a4661d; --good:#3a6a45; --doc:#3a6070; --num:ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);
+  font:14px/1.45 -apple-system,"SF Pro Text",Inter,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;padding:44px 52px}
+h1{font-size:26px;font-weight:680;letter-spacing:-.02em}
+.sub{color:var(--mut);margin:5px 0 30px;font-size:14.5px}
+.sub b{color:var(--ink);font-weight:600}
+
+.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:0;align-items:stretch}
+.col{position:relative;padding:0 16px}
+.col:not(:last-child)::after{content:"";position:absolute;right:-1px;top:44px;bottom:20px;
+  border-right:1px dashed var(--line)}
+.stage{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--faint);
+  font-weight:640;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.stage .n{font-family:var(--num);font-size:10px;color:#fff;background:var(--accent);
+  width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}
+
+.box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-bottom:9px}
+.box .t{font-weight:600;font-size:13px}
+.box .d{color:var(--mut);font-size:11.5px;margin-top:2px;line-height:1.35}
+.box .tag{font-family:var(--num);font-size:10px;margin-top:6px;display:inline-block;
+  padding:1px 6px;border-radius:5px;background:var(--sunk);color:var(--faint)}
+.box.req .tag{background:#ece4d6;color:var(--warn)}
+.box.opt{border-style:dashed;opacity:.9}
+.box.opt .tag{color:var(--accent)}
+.box.plan{border-style:dashed;background:transparent}
+.box.plan .t{color:var(--faint)}
+
+.store{background:var(--ink);color:#f4f1ea;border-radius:12px;padding:14px 14px 12px}
+.store .path{font-family:var(--num);font-size:12px;color:#c9d3e6;margin-bottom:9px}
+.store .row{display:flex;justify-content:space-between;font-size:11.5px;padding:4px 0;border-top:1px solid #2c2a22}
+.store .row:first-of-type{border-top:0}
+.store .row .k{font-family:var(--num);color:#e9e5db}
+.store .row .v{color:#9b968a}
+.store .note{font-size:10.5px;color:#8a857a;margin-top:9px;line-height:1.4}
+
+.tier{display:flex;align-items:baseline;gap:8px;font-size:12px;padding:5px 0;border-top:1px solid var(--line)}
+.tier:first-of-type{border-top:0}
+.tier .b{font-weight:600;min-width:74px}
+.tier .m{color:var(--mut);font-size:11px}
+.tier.def .b::after{content:" ·default";font-family:var(--num);font-size:9px;color:var(--good);font-weight:400}
+
+.view{display:inline-block;font-size:12px;font-weight:560;padding:5px 10px;border-radius:8px;
+  background:var(--card);border:1px solid var(--line);margin:0 5px 6px 0}
+.serve .t{font-weight:600;font-size:13px}
+.serve .d{color:var(--mut);font-size:11.5px;margin-top:2px}
+.serve .tools{font-family:var(--num);font-size:10.5px;color:var(--accent2);margin-top:5px;line-height:1.5}
+
+.band{margin-top:26px;background:var(--sunk);border-radius:12px;padding:15px 18px;
+  display:grid;grid-template-columns:auto 1fr;gap:14px 20px;align-items:start}
+.band h3{grid-column:1/-1;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);font-weight:640;margin-bottom:-2px}
+.band .k{font-weight:600;font-size:12.5px;white-space:nowrap}
+.band .v{font-size:12.5px;color:var(--mut)}
+.band code{font-family:var(--num);font-size:11.5px;background:var(--card);padding:1px 5px;border-radius:4px}
+.foot{margin-top:20px;color:var(--faint);font-size:11.5px}
+</style>
+
+<h1>My Day — architecture</h1>
+<p class="sub">Sources are read, rolled up into <b>plain Markdown</b> every ten minutes, and served
+back three ways. Everything stays on the Mac; nothing leaves unless a cloud summariser is turned on.</p>
+
+<div class="flow">
+
+  <!-- 1. Sources -->
+  <div class="col">
+    <div class="stage"><span class="n">1</span>Sources</div>
+    <div class="box req"><div class="t">Apps &amp; windows</div><div class="d">Which app is in front, and its window title</div><div class="tag">Accessibility (titles)</div></div>
+    <div class="box"><div class="t">Browsing</div><div class="d">Page titles &amp; URLs from the browser's own history</div><div class="tag">no permission</div></div>
+    <div class="box"><div class="t">Claude Code</div><div class="d">Project, prompt, and a way back into the session</div><div class="tag">no permission</div></div>
+    <div class="box opt"><div class="t">On-screen text</div><div class="d">The body of the focused page, not just its title</div><div class="tag">Accessibility · opt-in</div></div>
+    <div class="box plan"><div class="t">Git · Calendar</div><div class="d">Planned</div></div>
+  </div>
+
+  <!-- 2. Capture -->
+  <div class="col">
+    <div class="stage"><span class="n">2</span>Capture</div>
+    <div class="box"><div class="t">Sampler · every 15s</div><div class="d">Reads the frontmost app in-process. Idle time pauses it.</div></div>
+    <div class="box"><div class="t">Exclude before write</div><div class="d">A blocked app or site never reaches disk. Password managers excluded by default.</div><div class="tag">no later filter to get wrong</div></div>
+    <div class="box" style="border-color:var(--accent);"><div class="t">Raw events</div><div class="d">Append-only JSONL, one line per sample</div><div class="tag">kept 14 days</div></div>
+  </div>
+
+  <!-- 3. Roll up -->
+  <div class="col">
+    <div class="stage"><span class="n">3</span>Roll up · 10 min</div>
+    <div class="box"><div class="t">One Markdown note</div><div class="d">Per ten-minute slot. ~40 files a day. Apps, sites and times copied from the capture, never a model.</div></div>
+    <div class="box"><div class="t" style="margin-bottom:4px">Who writes the prose</div>
+      <div class="tier def"><span class="b">local</span><span class="m">keywords, no model, nothing sent</span></div>
+      <div class="tier"><span class="b">on-device</span><span class="m">Apple model, no network</span></div>
+      <div class="tier"><span class="b">claude-cli</span><span class="m">your Claude Code</span></div>
+      <div class="tier"><span class="b">api</span><span class="m">ANTHROPIC_API_KEY</span></div>
+      <div class="tag" style="margin-top:7px;font-family:var(--num);font-size:10px;color:var(--faint)">every send → egress.log</div>
+    </div>
+  </div>
+
+  <!-- 4. Store -->
+  <div class="col">
+    <div class="stage"><span class="n">4</span>Store</div>
+    <div class="store">
+      <div class="path">~/.myday/</div>
+      <div class="row"><span class="k">memories/</span><span class="v">notes, kept</span></div>
+      <div class="row"><span class="k">raw/</span><span class="v">events, 14d</span></div>
+      <div class="row"><span class="k">content/</span><span class="v">page bodies</span></div>
+      <div class="row"><span class="k">cache/</span><span class="v">derived, rebuilt</span></div>
+      <div class="row"><span class="k">config.json</span><span class="v">settings</span></div>
+      <div class="row"><span class="k">egress.log</span><span class="v">what left</span></div>
+      <div class="note">Plain text. grep it, edit one, delete a file. No database, no account, no upload.</div>
+    </div>
+    <div class="box" style="margin-top:9px"><div class="t">Identifiers</div><div class="d">Files, repos, page paths — the byte-identical keys that join notes into work.</div><div class="tag">powers Threads · cached per day</div></div>
+  </div>
+
+  <!-- 5. Serve -->
+  <div class="col">
+    <div class="stage"><span class="n">5</span>Derive &amp; serve</div>
+    <div class="box"><div class="t" style="margin-bottom:7px">The app · 7 views</div>
+      <span class="view">Today</span><span class="view">Timeline</span><span class="view">Apps</span>
+      <span class="view">Threads</span><span class="view">People</span><span class="view">Content</span>
+      <span class="view">Permissions</span>
+    </div>
+    <div class="box serve"><div class="t">MCP server</div><div class="d">Any assistant reads your history mid-task</div>
+      <div class="tools">history_search · history_window<br>history_resume · history_time_by</div>
+      <div class="tag" style="margin-top:6px;font-family:var(--num);font-size:10px;color:var(--faint)">untrusted-data envelope</div></div>
+    <div class="box serve"><div class="t">CLI</div><div class="d"><span style="font-family:var(--num);font-size:11px">search · ask · show · threads · friction</span></div></div>
+  </div>
+
+</div>
+
+<div class="band">
+  <h3>The rules under all of it</h3>
+  <div class="k">No screenshots</div><div class="v">Text only. Never keystrokes or clicks. On-screen capture reads the accessibility tree and stores no image.</div>
+  <div class="k">Local by default</div><div class="v">The default summariser runs no model. A cloud tier is opt-in, and every send is appended to <code>egress.log</code>.</div>
+  <div class="k">Per-source consent</div><div class="v">Each source is a separate switch. On-screen text is off until you turn it on.</div>
+  <div class="k">Clearing is real</div><div class="v"><code>myday clear</code> removes the notes <b>and</b> the raw events and derived caches behind them.</div>
+  <div class="k">One machine</div><div class="v">No sync. The record lives on the Mac that made it, by design.</div>
+</div>
+
+<p class="foot">Ships two ways off the same store: a menu-bar app with a bundled Node runtime, or <code>npm install -g @abhitsian/myday</code>. macOS, Apple Silicon.</p>

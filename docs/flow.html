@@ -1,0 +1,93 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>My Day — how it works</title>
+<style>
+  body{margin:0;background:#fdfaf4;display:flex;justify-content:center;padding:24px}
+  svg{font-family:ui-monospace,"SF Mono",Menlo,monospace}
+  .lbl{fill:#b0562f;font-size:12px;font-weight:600;letter-spacing:.08em}
+  .body{fill:#bd7350;font-size:9.5px;letter-spacing:.05em}
+  .mut{fill:#a99a89;font-size:9.5px;letter-spacing:.07em}
+  .core{fill:#b0562f;font-size:15px;font-weight:700;letter-spacing:.1em}
+  .box{fill:#fdfaf4;stroke:#cf865c;stroke-width:1.4}
+  .box-core{fill:#f6e7db;stroke:#b0562f;stroke-width:1.6}
+  .conn{stroke:#c06a3d;stroke-width:1.4;fill:none}
+</style>
+<body>
+<svg width="1040" height="412" viewBox="0 0 1040 412">
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M0,1 L8,4.5 L0,8" fill="none" stroke="#c06a3d" stroke-width="1.4"/>
+    </marker>
+    <pattern id="grid" width="34" height="34" patternUnits="userSpaceOnUse">
+      <path d="M4,0 L4,8 M0,4 L8,4" stroke="#e9ddce" stroke-width="1" transform="translate(13,13)"/>
+    </pattern>
+  </defs>
+  <rect x="0" y="0" width="1040" height="412" fill="url(#grid)"/>
+
+  <!-- ============ SOURCES (left) ============ -->
+  <rect class="box" x="34"  y="56"  width="214" height="50" rx="3"/>
+  <text class="lbl"  x="52" y="78">WHICH APP IS IN FRONT</text>
+  <text class="body" x="52" y="93">FRONTMOST APP · WINDOW TITLE</text>
+
+  <rect class="box" x="34"  y="132" width="214" height="50" rx="3"/>
+  <text class="lbl"  x="52" y="154">BROWSER HISTORY</text>
+  <text class="body" x="52" y="169">PAGES YOUR BROWSER KEPT</text>
+
+  <rect class="box" x="34"  y="208" width="214" height="50" rx="3"/>
+  <text class="lbl"  x="52" y="230">CLAUDE CODE SESSIONS</text>
+  <text class="body" x="52" y="245">PROJECT · PROMPT · RESUME</text>
+
+  <rect class="box" x="34"  y="284" width="214" height="50" rx="3" stroke-dasharray="5 3"/>
+  <text class="lbl"  x="52" y="306">ON-SCREEN TEXT</text>
+  <text class="body" x="52" y="321">PAGE BODY · OPT-IN</text>
+
+  <!-- stubs -> vertical bus at x=286 -> note -->
+  <path class="conn" d="M248,81  H286 V195"/>
+  <path class="conn" d="M248,157 H286"/>
+  <path class="conn" d="M248,233 H286 V195"/>
+  <path class="conn" d="M248,309 H286 V195"/>
+  <path class="conn" d="M286,195 H336" marker-end="url(#arrow)"/>
+
+  <!-- ============ ROLLUP note ============ -->
+  <rect class="box" x="340" y="160" width="176" height="70" rx="3"/>
+  <text class="lbl"  x="356" y="184">EVERY 10 MINUTES</text>
+  <text class="body" x="356" y="201">ONE MARKDOWN NOTE</text>
+  <text class="body" x="356" y="216">LOCAL · ON-DEVICE · CLOUD</text>
+
+  <path class="conn" d="M516,195 H560" marker-end="url(#arrow)"/>
+
+  <!-- ============ THE RECORD (core, filled) ============ -->
+  <rect class="box-core" x="564" y="104" width="224" height="182" rx="3"/>
+  <rect x="565.3" y="105.3" width="221.4" height="30" fill="#efd8c6"/>
+  <text class="core" x="584" y="126">THE RECORD</text>
+  <text class="body" x="584" y="160">NOTE PER 10 MIN · KEPT</text>
+  <text class="body" x="584" y="180">THREADS · WORK THAT RECURS</text>
+  <text class="body" x="584" y="200">PEOPLE · WHO &amp; WHEN LAST</text>
+  <text class="body" x="584" y="220">WHAT YOU READ · RANKED</text>
+  <text class="body" x="584" y="240">IDENTIFIERS JOIN IT ALL</text>
+  <text class="mut"  x="584" y="264">~/.MYDAY · PLAIN MARKDOWN</text>
+  <text class="mut"  x="584" y="278">GREP · EDIT · DELETE A FILE</text>
+
+  <!-- core -> two outputs -->
+  <path class="conn" d="M788,150 H820 V86  H852" marker-end="url(#arrow)"/>
+  <path class="conn" d="M788,240 H820 V300 H852" marker-end="url(#arrow)"/>
+
+  <!-- ============ OUTPUTS (right) ============ -->
+  <rect class="box" x="856" y="54" width="168" height="66" rx="3"/>
+  <text class="lbl"  x="872" y="76">THE APP · 7 VIEWS</text>
+  <text class="body" x="872" y="92">TODAY · TIMELINE · APPS</text>
+  <text class="body" x="872" y="106">THREADS · PEOPLE · CONTENT</text>
+
+  <rect class="box" x="856" y="268" width="168" height="66" rx="3"/>
+  <text class="lbl"  x="872" y="290">YOUR AI ASSISTANT</text>
+  <text class="body" x="872" y="306">WHAT DID I DO TUESDAY</text>
+  <text class="body" x="872" y="320">WHERE DID I LEAVE OFF</text>
+
+  <!-- ============ annotations (muted) ============ -->
+  <text class="mut" x="356" y="150">EXCLUDE BEFORE WRITE</text>
+  <text class="mut" x="820" y="200">READ-ONLY · WRITES NOTHING BACK</text>
+  <text class="mut" x="820" y="214">CLOUD SENDS → EGRESS.LOG</text>
+  <text class="mut" x="34"  y="376">NO SCREENSHOTS · NO KEYSTROKES</text>
+  <text class="mut" x="34"  y="392">ONE SWITCH PER SOURCE · NOTHING LEAVES THIS MAC</text>
+</svg>
+</body>
