@@ -3,7 +3,7 @@ import ServiceManagement
 import SwiftUI
 import WebKit
 
-// App.swift — menu bar item, onboarding window, and the window that shows the day.
+// App.swift — a regular Mac app: Dock icon, main menu, the day window, plus a menu bar item.
 //
 // The app is the daemon. There is no launchd agent and no background helper: it samples in
 // this process (which is where the Accessibility grant lives), runs the Node rollup on a
@@ -22,7 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, WKNavi
         let delegate = AppDelegate()
         retained = delegate
         app.delegate = delegate
-        app.setActivationPolicy(.accessory)   // menu bar app; windows are shown on demand
+        // Headless (config "headless": true): a background recorder with no Dock icon, no
+        // window and no menu bar item. Another app reads ~/.myday; quit with `pkill MyDay`.
+        app.setActivationPolicy(Store.isHeadless ? .accessory : .regular)
         app.run()
     }
 
@@ -35,12 +37,103 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, WKNavi
     private var dayWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ n: Notification) {
+        buildMainMenu()
         buildMenuBar()
         if Store.isSetUp {
             beginRecording()
+            if !Store.isHeadless { showDay() }
         } else {
             showOnboarding()
         }
+    }
+
+    /// Closing the window keeps recording. The app quits only from Quit, like any recorder.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        let m = NSMenu()
+        let paused = (Store.config()["paused"] as? Bool) ?? false
+        add(m, "Open My Day", #selector(showDay))
+        add(m, paused ? "Resume recording" : "Pause recording", #selector(togglePause))
+        return m
+    }
+
+    // MARK: main menu
+
+    private func buildMainMenu() {
+        let main = NSMenu()
+
+        // App menu
+        let appItem = NSMenuItem(); main.addItem(appItem)
+        let appMenu = NSMenu()
+        appMenu.addItem(withTitle: "About My Day", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(.separator())
+        add(appMenu, "Settings…", #selector(showSettings), key: ",")
+        appMenu.addItem(.separator())
+        let pauseItem = NSMenuItem(title: "Pause recording", action: #selector(togglePause), keyEquivalent: "")
+        pauseItem.target = self; pauseItem.tag = 42; appMenu.addItem(pauseItem)
+        add(appMenu, "Reveal files in Finder", #selector(revealFiles))
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: "Hide My Day", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        let hideOthers = appMenu.addItem(withTitle: "Hide Others", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
+        hideOthers.keyEquivalentModifierMask = [.command, .option]
+        appMenu.addItem(withTitle: "Show All", action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: "")
+        appMenu.addItem(.separator())
+        add(appMenu, "Delete Everything and Quit…", #selector(deleteEverything))
+        add(appMenu, "Quit My Day", #selector(quit), key: "q")
+        appMenu.delegate = self
+        appItem.submenu = appMenu
+
+        // File
+        let fileItem = NSMenuItem(); main.addItem(fileItem)
+        let file = NSMenu(title: "File")
+        add(file, "Open My Day", #selector(showDay), key: "n")
+        file.addItem(withTitle: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        fileItem.submenu = file
+
+        // Edit, so copy, paste and select all work inside the day view
+        let editItem = NSMenuItem(); main.addItem(editItem)
+        let edit = NSMenu(title: "Edit")
+        edit.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        let redo = edit.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "z")
+        redo.keyEquivalentModifierMask = [.command, .shift]
+        edit.addItem(.separator())
+        edit.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        edit.addItem(.separator())
+        let find = edit.addItem(withTitle: "Find…", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "f")
+        find.tag = Int(NSFindPanelAction.showFindPanel.rawValue)
+        editItem.submenu = edit
+
+        // View
+        let viewItem = NSMenuItem(); main.addItem(viewItem)
+        let view = NSMenu(title: "View")
+        add(view, "Reload", #selector(reloadDay), key: "r")
+        viewItem.submenu = view
+
+        // Window
+        let winItem = NSMenuItem(); main.addItem(winItem)
+        let win = NSMenu(title: "Window")
+        win.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        win.addItem(withTitle: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
+        win.addItem(.separator())
+        win.addItem(withTitle: "Bring All to Front", action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: "")
+        winItem.submenu = win
+        NSApp.windowsMenu = win
+
+        NSApp.mainMenu = main
+    }
+
+    @objc private func reloadDay() { (dayWindow?.contentView as? WKWebView)?.reload() }
+
+    /// A menu-bar app has no Dock icon, so the menu bar item is the only way in. When that item
+    /// is hidden (behind the notch, or switched off in System Settings) the app looks dead.
+    /// Opening it again from Spotlight, Finder or `open -a` should bring the day window up.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if Store.isSetUp { showDay() } else { showOnboarding() }
+        return true
     }
 
     func applicationWillTerminate(_ n: Notification) {
@@ -80,11 +173,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, WKNavi
         // reads as the permission not having worked.
         menu.delegate = self
         statusItem.menu = menu
+        statusItem.isVisible = !Store.isHeadless
         refreshMenu()
     }
 
     /// Rebuild every time the menu is opened, so what it says is what is true now.
-    func menuNeedsUpdate(_ menu: NSMenu) { refreshMenu() }
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        if let item = menu.item(withTag: 42) {
+            let paused = (Store.config()["paused"] as? Bool) ?? false
+            item.title = paused ? "Resume recording" : "Pause recording"
+            return
+        }
+        refreshMenu()
+    }
 
     @objc private func refreshMenu() {
         guard let menu = statusItem?.menu else { return }
@@ -244,6 +345,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, WKNavi
                          backing: .buffered, defer: false)
         w.title = "My Day"
         w.center()
+        w.setFrameAutosaveName("MyDayWindow")
+        w.minSize = NSSize(width: 720, height: 520)
         w.contentView = web
         w.isReleasedWhenClosed = false
         dayWindow = w

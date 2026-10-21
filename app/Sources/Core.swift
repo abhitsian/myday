@@ -32,6 +32,8 @@ enum Store {
         }
     }
 
+    static var isHeadless: Bool { (config()["headless"] as? Bool) ?? false }
+
     static func config() -> [String: Any] {
         guard let d = try? Data(contentsOf: configURL),
               let j = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { return defaults }

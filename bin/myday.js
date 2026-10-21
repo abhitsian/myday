@@ -20,6 +20,7 @@ const TH = require('../lib/threads');
 const PPL = require('../lib/people');
 const RD = require('../lib/reading');
 const SRC = require('../lib/sources');
+const EXT = require('../lib/extensions');
 const I = require('../lib/icons');
 
 const PKG = require('../package.json');
@@ -621,7 +622,7 @@ function cmdView() {
       const cfg = S.readConfig();
       const raw = S.readRaw(date);
       const body = JSON.stringify({
-        date, entries: S.readEntries(date), dates: S.dates(),
+        date, entries: S.readEntries(date), dates: S.dates(), events: EXT.events(date),
         paused: !!cfg.paused, summarizer: cfg.summarizer,
         capture: { samples: raw.length, titlePct: raw.length ? Math.round(raw.filter((r) => r.title).length / raw.length * 100) : 0 },
       });
@@ -748,6 +749,38 @@ function cmdView() {
           res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ ok })); }
         catch { res.writeHead(400); res.end(); }
       });
+    }
+    // Extensions. Routes live under /api/ext/<id>/ and tab assets under /ext/<id>/, both
+    // namespaced so no extension can shadow a built-in path.
+    if (u.pathname === '/api/extensions') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      return res.end(JSON.stringify({
+        tabs: EXT.tabs(),
+        errors: EXT.load().filter((x) => x.error).map((x) => ({ id: x.id, error: x.error })),
+      }));
+    }
+    if (u.pathname.startsWith('/api/ext/')) {
+      const fn = EXT.routes()[`${req.method} ${u.pathname}`];
+      if (fn) {
+        try {
+          return fn(req, res, { url: u, date: u.searchParams.get('date') || S.isoDate(), store: S });
+        } catch (e) {
+          res.writeHead(500, { 'content-type': 'application/json' });
+          return res.end(JSON.stringify({ error: String((e && e.message) || e) }));
+        }
+      }
+      res.writeHead(404, { 'content-type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'no such extension route' }));
+    }
+    if (u.pathname.startsWith('/ext/')) {
+      const [, , id, ...rest] = u.pathname.split('/');
+      const asset = EXT.staticFile(id, rest.join('/'));
+      if (!asset) { res.writeHead(404); return res.end(); }
+      const ct = asset.endsWith('.js') ? 'application/javascript'
+        : asset.endsWith('.css') ? 'text/css'
+        : asset.endsWith('.json') ? 'application/json' : 'text/plain';
+      res.writeHead(200, { 'content-type': ct });
+      return res.end(fs.readFileSync(asset));
     }
     res.writeHead(200, { 'content-type': 'text/html' });
     res.end(fs.readFileSync(file));

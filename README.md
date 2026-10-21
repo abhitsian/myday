@@ -283,6 +283,15 @@ myday build-content              # optional: read on-screen text, off by default
 myday view                       # the app, in a browser
 ```
 
+## Extensions
+
+The sources above are the ones every Mac has. Whatever else you track — a task tracker, a
+watch, a calendar nobody else can see — loads from `~/.myday/extensions/`, outside this
+repo. An extension can add a tab, serve its own routes, and add front matter to a note. It
+cannot change what was measured.
+
+See [docs/extensions.md](docs/extensions.md).
+
 ## What it does not do yet
 
 - **Window titles need Accessibility**, so without it a note names the app and not the document.

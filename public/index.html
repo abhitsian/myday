@@ -495,7 +495,9 @@ function render(){
   const list = D.entries.filter(e => !q ||
     `${e.title} ${e.summary} ${e.body} ${e.apps.join(' ')} ${e.sites.join(' ')} ${e.project||''}`.toLowerCase().includes(q));
   const el = document.getElementById('list');
-  if (!list.length){
+  const exts = (D.events||[]).filter(x=>!q ||
+    `${x.title} ${x.tag||''} ${x.meta||''} ${x.body||''}`.toLowerCase().includes(q));
+  if (!list.length && !exts.length){
     el.innerHTML = `<div class="none">${q ? 'Nothing on this day matches “'+esc(q)+'”.'
       : 'No notes yet for this day.<br>My Day writes one every ten minutes while you work.'}</div>`;
     return;
@@ -509,6 +511,7 @@ function render(){
     ..._sessions.filter(sn=>!q ||
         `${sn.title} ${sn.project} ${sn.prompt}`.toLowerCase().includes(q))
       .map(sn=>({kind:'sess', at:mins(sn.start), sn})),
+    ...exts.map(x=>({kind:'ext', at:mins(x.start), x})),
   ].sort((a,b)=>a.at-b.at);
 
   el.innerHTML = events.map(ev=>{
@@ -529,6 +532,7 @@ function render(){
         </div>
       </div>`;
     }
+    if (ev.kind==='ext') return renderExtEvent(ev.x);
     const e = ev.e;
     return renderNote(e, nowSlot);
   }).join('');
@@ -536,12 +540,55 @@ function render(){
   el.querySelectorAll('.eti[data-k]').forEach(t=>t.onclick=()=>{
     const k=t.dataset.k; open.has(k)?open.delete(k):open.add(k); render();
   });
+  el.querySelectorAll('.eti[data-xk]').forEach(t=>t.onclick=()=>{
+    const k=t.dataset.xk; open.has(k)?open.delete(k):open.add(k); render();
+  });
+  el.querySelectorAll('[data-xroute]').forEach(b=>b.onclick=async()=>{
+    const r = await fetch(`/api/ext/${b.dataset.xext}${b.dataset.xroute}`,{method:'POST'});
+    const was=b.querySelector('b').textContent;
+    b.querySelector('b').textContent = r.ok ? 'opened' : 'failed';
+    setTimeout(()=>{ b.querySelector('b').textContent = was; }, 1400);
+  });
   el.querySelectorAll('.x').forEach(b=>b.onclick=async()=>{
     await fetch('/api/delete',{method:'POST',headers:{'content-type':'application/json'},
       body:JSON.stringify({date:b.dataset.d,slot:b.dataset.s})});
     load(D.date);
   });
   return;
+}
+
+// An item an extension put on the rail. Same shape as a Claude Code session: a tag, a
+// meta line, a title that expands to the extension's Markdown body, and its own actions.
+function mdBlock(src){
+  const out=[]; let ul=false;
+  for (const line of String(src||'').split('\n')){
+    const li=/^\s*[-*] (.*)$/.exec(line), h=/^#{1,4} (.*)$/.exec(line);
+    if (!li && ul){ out.push('</ul>'); ul=false; }
+    if (h) out.push(`<div class="plbl" style="margin:12px 0 4px">${md(h[1])}</div>`);
+    else if (li){ if(!ul){ out.push('<ul style="margin:0;padding-left:18px">'); ul=true; } out.push(`<li>${md(li[1])}</li>`); }
+    else if (line.trim()) out.push(`<p style="margin:4px 0">${md(line)}</p>`);
+  }
+  if (ul) out.push('</ul>');
+  return out.join('');
+}
+function renderExtEvent(x){
+  const k='x:'+x.ext+':'+(x.id||x.start), o=open.has(k);
+  const acts=(x.actions||[]).map(a=>`<span class="resume" data-xext="${esc(x.ext)}" data-xroute="${esc(a.route)}"
+      title="${esc(a.label)}">${a.icon?esc(a.icon)+' ':''}<b>${esc(a.label)}</b></span>`).join(' ');
+  return `<div class="e sess">
+    <div class="etime">${t12(x.start)}</div>
+    <div class="erail"><span class="edot"></span></div>
+    <div class="emain">
+      <div class="sesshead">
+        <span class="sesstag">${esc(x.tag||x.ext)}</span>
+        ${x.meta?`<span class="sessmeta">${esc(x.meta)}</span>`:''}
+      </div>
+      <div class="eti" ${x.body?`data-xk="${esc(k)}"`:'style="cursor:default"'}>${esc(x.title)}</div>
+      ${x.summary?`<div class="esu">${esc(x.summary)}</div>`:''}
+      ${o&&x.body?`<div class="ebody">${mdBlock(x.body)}</div>`:''}
+      ${acts}
+    </div>
+  </div>`;
 }
 
 function renderNote(e, nowSlot){
@@ -572,12 +619,36 @@ const bar = (name,pct,val,color,icon) =>
   `<span class="tr"><i style="width:${pct}%;background:${color}"></i></span>`+
   `<span class="vl">${esc(val)}</span></div>`;
 
+let EXT_TABS = [];
+const _extMods = {};
+
 async function renderPane(){
   const list=document.getElementById('list'), pane=document.getElementById('pane'), q=document.getElementById('q');
   list.style.display = view==='memories' ? '' : 'none';
   q.style.display    = view==='memories' ? '' : 'none';
   pane.style.display = view==='memories' ? 'none' : '';
   if (view==='memories') { await loadSessions(); return render(); }
+
+  // Extension tabs render themselves. The module is loaded once and kept, so switching
+  // back to a tab does not refetch it; a failing one says so in the pane instead of
+  // leaving the view stuck on the loading line.
+  if (view.startsWith('ext:')) {
+    const id = view.slice(4);
+    pane.innerHTML = '<div class="none">Loading…</div>';
+    try {
+      const tab = (EXT_TABS || []).find(t => t.id === id);
+      if (!tab) throw new Error('extension went away');
+      _extMods[id] = _extMods[id] || await import(`/ext/${id}/${tab.render}`);
+      const mod = _extMods[id];
+      const fn = mod.render || (mod.default && mod.default.render) || mod.default;
+      if (typeof fn !== 'function') throw new Error('no render function exported');
+      pane.innerHTML = '';
+      await fn(pane, { date: D.date, api: (p, o) => fetch(`/api/ext/${id}${p}`, o) });
+    } catch (e) {
+      pane.innerHTML = `<div class="none">This tab failed to load.<br><code>${String(e && e.message || e)}</code></div>`;
+    }
+    return;
+  }
 
   pane.innerHTML = '<div class="none">Reading your day…</div>';
   const d = await (await fetch(`/api/${view}?date=${D.date}`)).json();
@@ -937,7 +1008,23 @@ window.addEventListener('focus', refresh);
 // Notes land every ten minutes, so a window left open should show them without being touched.
 setInterval(() => { if (document.visibilityState === 'visible') refresh(); }, 5 * 60 * 1000);
 
-load(new URLSearchParams(location.search).get('date') || undefined);
+// Extension tabs are appended after the built-in ones, so the shipped app looks the same
+// on a machine with no extensions installed.
+async function loadExtensions(){
+  try {
+    const r = await (await fetch('/api/extensions')).json();
+    EXT_TABS = r.tabs || [];
+    const bar = document.getElementById('tabs');
+    for (const t of EXT_TABS) {
+      const b = document.createElement('button');
+      b.className = 'tab'; b.dataset.v = 'ext:' + t.id; b.textContent = t.label;
+      bar.appendChild(b);
+    }
+    for (const e of (r.errors || [])) console.error(`extension "${e.id}" skipped: ${e.error}`);
+  } catch {}
+}
+
+loadExtensions().then(() => load(new URLSearchParams(location.search).get('date') || undefined));
 </script>
 <div id="pscrim" onclick="document.getElementById('pdrawer').classList.remove('on');this.classList.remove('on')"></div>
 <aside id="pdrawer"></aside>
